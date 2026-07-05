@@ -901,3 +901,29 @@ input[type="file"]::file-selector-button:hover {
 @media (max-width: 375px) {
   .card-body, .post-card, .composer, .trail-panel { padding: var(--space-4); }
 }
+
+
+.auth-page {
+  position: relative;
+  overflow: hidden;
+}
+.auth-page::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: url('../img/badge.png') no-repeat center 20% / 520px auto;
+  opacity: 0.06;
+  pointer-events: none;
+}
+
+.empty-state {
+  position: relative;
+}
+.empty-state::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: url('../img/badge.png') no-repeat center / 180px auto;
+  opacity: 0.08;
+  pointer-events: none;
+}
