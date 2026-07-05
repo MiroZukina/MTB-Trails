@@ -139,6 +139,9 @@ textarea:focus-visible,
 
 /* ---- Navbar -------------------------------------------------------------- */
 .navbar {
+  position: sticky;
+  top: 0;
+  z-index: 1100; /* above Leaflet panes (~1000) */
   background-color: rgba(20, 26, 16, 0.82) !important;
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
@@ -176,10 +179,17 @@ textarea:focus-visible,
   justify-content: center;
   min-width: 44px;
   min-height: 44px;
-  border-color: var(--border);
+  border: 1px solid var(--border);
+  padding: 8px 10px;
   box-shadow: none !important;
 }
-.navbar-toggler:focus-visible { box-shadow: 0 0 0 3px rgba(163, 230, 53, 0.45) !important; }
+.navbar-toggler:focus,
+.navbar-toggler:focus-visible {
+  box-shadow: 0 0 0 3px rgba(163, 230, 53, 0.35) !important;
+}
+.navbar-toggler-icon {
+  background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 30 30'%3e%3cpath stroke='%23a3e635' stroke-linecap='round' stroke-miterlimit='10' stroke-width='2.5' d='M4 7h22M4 15h22M4 23h22'/%3e%3c/svg%3e");
+}
 
 /* Mobile menu (below the lg collapse breakpoint): the desktop navbar's
    translucent blur must not carry into the open menu, since it then sits
@@ -194,6 +204,10 @@ textarea:focus-visible,
     margin-top: var(--space-3);
     padding: var(--space-3);
     box-shadow: var(--shadow-md);
+    /* navbar is sticky at top:0, so on short viewports the open menu
+       needs its own scroll instead of overflowing off-screen */
+    max-height: calc(100vh - 70px);
+    overflow-y: auto;
   }
   .navbar-nav .nav-link,
   .navbar-nav .dropdown-item {
