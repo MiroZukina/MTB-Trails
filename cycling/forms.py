@@ -14,7 +14,7 @@ class PostForm(forms.ModelForm):
         required=True,
         widget=forms.Textarea(
             attrs={
-                "placeholder": "Enter Your Post",
+                "placeholder": "What's on your trail?",
                 "class": "form-control",
                 "rows": 3,
             }

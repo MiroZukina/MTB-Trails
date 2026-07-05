@@ -186,38 +186,82 @@
         <div class="composer" id="post-composer">
           <button type="button" class="composer-trigger">&#9999;&#65039; What's on your trail?</button>
           <div class="composer-body">
-            <form method="POST" enctype="multipart/form-data">
-              {% csrf_token %}
-              {{ form.non_field_errors }}
-              {{ form.body.errors }}
-              {{ form.body }}
-
-              <div class="dropzone" data-dropzone>
-                <label class="dropzone-btn" for="{{ form.post_media.id_for_label }}">
-                  <span class="dropzone-icon">&#128247;</span><span>Add photo/video</span>
-                </label>
-                <div class="dropzone-field">{{ form.post_media }}</div>
+            <div class="composer-card">
+              <div class="composer-card-header">
+                {% if request.user.profile.profile_image %}
+                  <img src="{{ request.user.profile.profile_image.url }}" class="composer-avatar" alt="">
+                {% else %}
+                  <img src="{% static 'images/default.jpg' %}" class="composer-avatar" alt="">
+                {% endif %}
+                <span class="composer-username">@{{ request.user.username|lower }}</span>
+                <button type="button" class="composer-close" aria-label="Close">&times;</button>
               </div>
-              {{ form.post_media.errors }}
 
-              {{ form.media_url.label_tag }}
-              {{ form.media_url }}
-              {{ form.media_url.errors }}
+              <form method="POST" enctype="multipart/form-data" id="post-form">
+                {% csrf_token %}
+                {{ form.non_field_errors }}
+                {{ form.body.errors }}
+                {{ form.body }}
 
-              <div class="dropzone" data-dropzone>
-                <label class="dropzone-btn" for="{{ form.attachment.id_for_label }}">
-                  <span class="dropzone-icon">&#128206;</span><span>Attach file</span>
-                </label>
-                <div class="dropzone-field">{{ form.attachment }}</div>
-              </div>
-              {{ form.attachment.errors }}
-              <input type="file" id="id_gpx_file" name="gpx_file" accept=".gpx" style="display:none">
+                <div class="composer-actions">
+                  <button type="button" class="composer-action-btn" data-toggle-section="media" title="Add photo/video" aria-label="Add photo or video">&#128247;</button>
+                  <button type="button" class="composer-action-btn" data-toggle-section="link" title="Add media link" aria-label="Add media link">&#128279;</button>
+                  <button type="button" class="composer-action-btn" data-toggle-section="attachment" title="Attach file" aria-label="Attach file">&#128206;</button>
+                  <button type="button" class="composer-action-btn" data-toggle-section="location" title="Add location" aria-label="Add location">&#128205;</button>
+                  <button type="button" class="composer-action-btn" data-toggle-section="difficulty" title="Set difficulty" aria-label="Set difficulty">&#128692;</button>
+                </div>
 
-              {{ form.latitude }}{{ form.longitude }}{{ form.location_name }}{{ form.route }}{{ form.difficulty }}
+                <div class="composer-section" data-section="media" hidden>
+                  <div class="dropzone" data-dropzone>
+                    <label class="dropzone-btn" for="{{ form.post_media.id_for_label }}">
+                      <span class="dropzone-icon">&#128247;</span><span>Add photo/video</span>
+                    </label>
+                    <div class="dropzone-field">{{ form.post_media }}</div>
+                  </div>
+                  {{ form.post_media.errors }}
+                </div>
 
-              <button type="submit" class="btn btn-primary">Post</button>
-            </form>
-            {% include 'map_picker.html' %}
+                <div class="composer-section" data-section="link" hidden>
+                  {{ form.media_url.label_tag }}
+                  {{ form.media_url }}
+                  {{ form.media_url.errors }}
+                  <div class="chip" id="media-url-chip" hidden>
+                    <span class="chip-icon">&#128279;</span>
+                    <span class="chip-name"></span>
+                    <button type="button" class="chip-remove" aria-label="Remove media link">&times;</button>
+                  </div>
+                </div>
+
+                <div class="composer-section" data-section="attachment" hidden>
+                  <div class="dropzone" data-dropzone>
+                    <label class="dropzone-btn" for="{{ form.attachment.id_for_label }}">
+                      <span class="dropzone-icon">&#128206;</span><span>Attach file</span>
+                    </label>
+                    <div class="dropzone-field">{{ form.attachment }}</div>
+                  </div>
+                  {{ form.attachment.errors }}
+                  <input type="file" id="id_gpx_file" name="gpx_file" accept=".gpx" style="display:none">
+                </div>
+
+                <div class="composer-section" data-section="difficulty" hidden>
+                  {{ form.difficulty }}
+                  <select id="mp-difficulty" class="select">
+                    <option value="">&#127758; Difficulty</option>
+                    <option value="green">&#129001; Easy</option>
+                    <option value="blue">&#128309; Moderate</option>
+                    <option value="red">&#128308; Difficult</option>
+                    <option value="black">&#9899; Severe</option>
+                  </select>
+                </div>
+
+                <div class="composer-section" data-section="location" hidden>
+                  {{ form.latitude }}{{ form.longitude }}{{ form.location_name }}{{ form.route }}
+                  {% include 'map_picker.html' with hide_difficulty=True %}
+                </div>
+
+                <button type="submit" class="btn btn-primary composer-submit" disabled>Post</button>
+              </form>
+            </div>
           </div>
         </div>
       {% endif %}

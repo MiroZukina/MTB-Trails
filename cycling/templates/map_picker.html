@@ -1,10 +1,11 @@
 <div class="mt-3 mb-3">
-  <div class="d-flex gap-2 mb-2 align-items-center">
+  <div class="mp-toolbar d-flex gap-2 mb-2 align-items-center">
     <div class="btn-group flex-grow-1" role="group" aria-label="Map mode">
       <button type="button" id="mp-pin-btn" class="btn btn-sm btn-primary">&#128205; Pin Location</button>
       <button type="button" id="mp-draw-btn" class="btn btn-sm btn-outline-secondary">&#9998; Draw Trail</button>
       <button type="button" id="mp-gpx-btn" class="btn btn-sm btn-outline-secondary">&#128228; Upload GPX</button>
     </div>
+    {% if not hide_difficulty %}
     <select id="mp-difficulty" class="select" style="min-width:150px;padding:6px 10px;min-height:32px;font-size:0.78rem;">
       <option value="">&#127758; Difficulty</option>
       <option value="green">&#129001; Easy</option>
@@ -12,6 +13,7 @@
       <option value="red">&#128308; Difficult</option>
       <option value="black">&#9899; Severe</option>
     </select>
+    {% endif %}
   </div>
 
   <!-- GPX mode controls (hidden by default) -->

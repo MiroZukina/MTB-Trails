@@ -101,17 +101,167 @@ function initDropzones() {
   });
 }
 
-// Collapsed post composer: click the trigger pill to reveal the full form.
+// Collapsed post composer: click the trigger pill to reveal the full card.
+// On narrow screens the expanded card becomes a full-screen sheet (see CSS),
+// so also lock/unlock background scroll and wire the header's close button.
 function initComposerToggle() {
   document.querySelectorAll('.composer').forEach(function (composer) {
     var trigger = composer.querySelector('.composer-trigger');
-    if (!trigger) return;
-    trigger.addEventListener('click', function () {
+    var closeBtn = composer.querySelector('.composer-close');
+    var isMobileSheet = function () {
+      return window.matchMedia('(max-width: 767.98px)').matches;
+    };
+
+    function open() {
       composer.classList.add('is-open');
+      if (isMobileSheet()) document.body.style.overflow = 'hidden';
       var firstField = composer.querySelector('.composer-body textarea, .composer-body input');
       if (firstField) firstField.focus();
+    }
+    function close() {
+      composer.classList.remove('is-open');
+      document.body.style.overflow = '';
+    }
+
+    if (trigger) trigger.addEventListener('click', open);
+    if (closeBtn) closeBtn.addEventListener('click', close);
+  });
+}
+
+// Facebook-style "Add to your post" row: each icon toggles a section below
+// it (photo/video, media link, attachment, location, difficulty). A section
+// stays visually "active" on its icon either while open or once it holds
+// content, so users can see at a glance what they've attached even after
+// collapsing it again.
+function initComposerSections() {
+  var card = document.querySelector('.composer-card');
+  if (!card) return;
+
+  // Scoped to the composer's own form: PostForm and CommentForm share field
+  // names (media_url, attachment), so a page-wide getElementById would pick
+  // up whichever comment's field happens to come first in the DOM.
+  var scope = card.querySelector('#post-form') || card;
+  var hasContent = {
+    media: function () {
+      var el = scope.querySelector('[name="post_media"]');
+      return !!(el && el.files && el.files.length);
+    },
+    link: function () {
+      var el = scope.querySelector('[name="media_url"]');
+      return !!(el && el.value.trim());
+    },
+    attachment: function () {
+      var el = scope.querySelector('[name="attachment"]');
+      return !!(el && el.files && el.files.length);
+    },
+    location: function () {
+      var lat = scope.querySelector('[name="latitude"]');
+      var route = scope.querySelector('[name="route"]');
+      return !!((lat && lat.value) || (route && route.value));
+    },
+    difficulty: function () {
+      var el = scope.querySelector('[name="difficulty"]');
+      return !!(el && el.value);
+    }
+  };
+
+  var buttons = card.querySelectorAll('.composer-action-btn[data-toggle-section]');
+
+  function refreshButtons() {
+    buttons.forEach(function (btn) {
+      var name = btn.dataset.toggleSection;
+      var section = card.querySelector('.composer-section[data-section="' + name + '"]');
+      var isOpen = section && !section.hidden;
+      var content = hasContent[name] ? hasContent[name]() : false;
+      btn.classList.toggle('is-active', !!isOpen || content);
+    });
+  }
+
+  buttons.forEach(function (btn) {
+    var name = btn.dataset.toggleSection;
+    var section = card.querySelector('.composer-section[data-section="' + name + '"]');
+    if (!section) return;
+    btn.addEventListener('click', function () {
+      section.hidden = !section.hidden;
+      if (!section.hidden) {
+        var firstField = section.querySelector('input:not([type=hidden]):not([type=file]), textarea, select');
+        if (firstField) firstField.focus();
+        if (name === 'location') {
+          // The Leaflet map was created while its container was hidden (0x0),
+          // so it needs a nudge to size itself correctly now that it's shown.
+          setTimeout(function () { window.dispatchEvent(new Event('resize')); }, 50);
+        }
+      }
+      refreshButtons();
     });
   });
+
+  card.addEventListener('input', refreshButtons);
+  card.addEventListener('change', refreshButtons);
+  refreshButtons();
+}
+
+// Post button stays disabled until there's something to post — mirrors the
+// server-side rule (text, a photo/video, a media link, or an attachment).
+function initComposerSubmitGate() {
+  var form = document.getElementById('post-form');
+  if (!form) return;
+  var submitBtn = form.querySelector('.composer-submit');
+  if (!submitBtn) return;
+  var bodyEl = form.querySelector('[name="body"]');
+  var mediaEl = form.querySelector('[name="post_media"]');
+  var urlEl = form.querySelector('[name="media_url"]');
+  var attachEl = form.querySelector('[name="attachment"]');
+
+  function hasFile(el) { return !!(el && el.files && el.files.length); }
+
+  function refresh() {
+    var ok = !!(bodyEl && bodyEl.value.trim()) ||
+      hasFile(mediaEl) ||
+      !!(urlEl && urlEl.value.trim()) ||
+      hasFile(attachEl);
+    submitBtn.disabled = !ok;
+  }
+
+  form.addEventListener('input', refresh);
+  form.addEventListener('change', refresh);
+  refresh();
+}
+
+// Large borderless textarea in the composer card grows with its content
+// instead of scrolling internally.
+function initComposerAutosize() {
+  var textarea = document.querySelector('.composer-card textarea.form-control');
+  if (!textarea) return;
+  function resize() {
+    textarea.style.height = 'auto';
+    textarea.style.height = textarea.scrollHeight + 'px';
+  }
+  textarea.addEventListener('input', resize);
+  resize();
+}
+
+// Media URL field shows its value as a removable chip, same component used
+// by the file dropzones, once a link has been entered.
+function initMediaUrlChip() {
+  var form = document.getElementById('post-form');
+  var chip = document.getElementById('media-url-chip');
+  var input = form ? form.querySelector('[name="media_url"]') : null;
+  if (!input || !chip) return;
+  var nameEl = chip.querySelector('.chip-name');
+  var removeBtn = chip.querySelector('.chip-remove');
+
+  function refresh() {
+    var v = input.value.trim();
+    nameEl.textContent = v;
+    chip.hidden = !v;
+  }
+  input.addEventListener('input', refresh);
+  removeBtn.addEventListener('click', function () {
+    input.value = '';
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+  });
+  refresh();
 }
 
 // Compact comment composer: the 🔗 icon reveals a small URL input.
@@ -133,5 +283,9 @@ function initCommentLinkToggles() {
 document.addEventListener('DOMContentLoaded', function () {
   initDropzones();
   initComposerToggle();
+  initComposerSections();
+  initComposerSubmitGate();
+  initComposerAutosize();
+  initMediaUrlChip();
   initCommentLinkToggles();
 });

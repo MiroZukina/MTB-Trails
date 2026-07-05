@@ -288,7 +288,9 @@ textarea:focus-visible,
 .btn.btn-sm { height: 32px; padding: 0 14px; font-size: var(--text-xs); gap: 6px; }
 .btn.btn-lg { height: 48px; padding: 0 26px; font-size: var(--text-base); }
 
-.btn-primary {
+.btn-primary,
+.btn-primary:disabled,
+.btn-primary.disabled {
   background-color: var(--accent);
   border-color: var(--accent);
   color: #10160b;
@@ -763,7 +765,7 @@ input[type="file"]::file-selector-button:hover {
 .feed-toolbar { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: var(--space-2); margin-bottom: var(--space-4); }
 @media (max-width: 480px) { .feed-toolbar { justify-content: flex-start; } }
 
-/* Collapsible composer */
+/* Collapsible composer (Facebook-style create-post card) */
 .composer { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-card); padding: var(--space-4); }
 .composer-trigger {
   width: 100%;
@@ -780,6 +782,121 @@ input[type="file"]::file-selector-button:hover {
 .composer-body { display: none; margin-top: var(--space-4); }
 .composer.is-open .composer-trigger { display: none; }
 .composer.is-open .composer-body { display: block; }
+
+.composer-card-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-bottom: var(--space-3);
+}
+.composer-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.composer-username { font-weight: 700; color: var(--trail-text); flex: 1; min-width: 0; }
+.composer-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  min-height: 44px;
+  background: none;
+  border: none;
+  color: var(--trail-muted);
+  font-size: 1.5rem;
+  line-height: 1;
+  border-radius: var(--radius-control);
+  cursor: pointer;
+  transition: background-color var(--transition), color var(--transition);
+}
+.composer-close:hover { background-color: var(--surface-raised); color: var(--accent); }
+
+/* Large borderless auto-growing textarea, Facebook-style */
+.composer-card textarea.form-control {
+  border: none;
+  background: transparent;
+  padding: 0;
+  min-height: 60px;
+  font-size: var(--text-base);
+  line-height: 1.4;
+  resize: none;
+  overflow: hidden;
+  box-shadow: none !important;
+}
+
+/* Compact "Add to your post" icon row */
+.composer-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  padding-block: var(--space-2);
+  margin-top: var(--space-2);
+}
+.composer-action-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  min-height: 44px;
+  background: none;
+  border: 1px solid transparent;
+  border-radius: var(--radius-control);
+  color: var(--trail-muted);
+  font-size: 1.15rem;
+  cursor: pointer;
+  transition: background-color var(--transition), color var(--transition), border-color var(--transition);
+}
+.composer-action-btn:hover { background-color: var(--surface-raised); color: var(--accent); }
+.composer-action-btn.is-active {
+  color: var(--accent);
+  background-color: rgba(163, 230, 53, 0.12);
+  border-color: rgba(163, 230, 53, 0.3);
+}
+
+/* Sections revealed below the icon row, hidden by default */
+.composer-section {
+  margin-top: var(--space-3);
+  padding-top: var(--space-3);
+  border-top: 1px dashed var(--border);
+}
+.composer-section[hidden] { display: none; }
+.composer-section .dropzone { margin-bottom: var(--space-2); }
+
+.composer-submit { width: 100%; margin-top: var(--space-3); }
+.composer-submit:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* Map mode segmented control: wrap instead of overflowing on narrow screens */
+.mp-toolbar { flex-wrap: wrap; }
+@media (max-width: 480px) {
+  .mp-toolbar .btn-group[aria-label="Map mode"] {
+    flex-wrap: wrap;
+    width: 100%;
+  }
+  .mp-toolbar .btn-group[aria-label="Map mode"] .btn {
+    flex: 1 1 auto;
+    min-width: 0;
+    border-radius: var(--radius-control) !important;
+  }
+}
+#mp-map { width: 100%; }
+
+/* Mobile: expanded composer renders as a full-screen sheet, not an inline card */
+@media (max-width: 767.98px) {
+  .composer.is-open {
+    position: fixed;
+    inset: 0;
+    z-index: 1200;
+    border-radius: 0;
+    overflow-y: auto;
+  }
+  .composer.is-open .composer-body { margin-top: 0; }
+}
 
 @media (max-width: 375px) {
   .card-body, .post-card, .composer, .trail-panel { padding: var(--space-4); }
