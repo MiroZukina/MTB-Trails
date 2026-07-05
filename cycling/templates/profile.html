@@ -1,0 +1,224 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %} {% endblock %}
+{% block content %}
+  {% if profile %}
+    <div style="max-width:1200px;">
+      <div class="d-flex align-items-center gap-3 flex-wrap" style="margin-bottom:var(--space-2);">
+        {% if profile.profile_image %}
+          <img src="{{ profile.profile_image.url }}" class="avatar-circle" style="width:72px;height:72px;" alt="{{ profile.user.username }}">
+        {% else %}
+          <span class="avatar-initial" style="width:72px;height:72px;font-size:var(--text-xl);">{{ profile.user.username|slice:":1"|upper }}</span>
+        {% endif %}
+        <div>
+          <span class="eyebrow">Rider profile</span>
+          <h1 style="margin-bottom:0;">{{ profile.user.username }}</h1>
+        </div>
+      </div>
+      {% include '_elevation_divider.html' %}
+
+      <div class="trail-panel mb-4">
+        <h5 style="margin-bottom:var(--space-4);">&#127939; Rider Stats</h5>
+        <div class="row g-3">
+          <div class="col-6 col-md-3">
+            <div style="font-family:var(--font-display);font-size:var(--text-2xl);font-weight:800;color:var(--trail-bright);">{{ stats.total_distance_km|default_if_none:0|floatformat:1 }} km</div>
+            <div class="eyebrow">Total Distance</div>
+          </div>
+          <div class="col-6 col-md-3">
+            <div style="font-family:var(--font-display);font-size:var(--text-2xl);font-weight:800;color:var(--trail-bright);">{{ stats.total_ascent_m|default_if_none:0 }} m</div>
+            <div class="eyebrow">Total Ascent</div>
+          </div>
+          <div class="col-6 col-md-3">
+            <div style="font-family:var(--font-display);font-size:var(--text-2xl);font-weight:800;color:var(--trail-bright);">{{ stats.trail_count }}</div>
+            <div class="eyebrow">Trail Posts</div>
+          </div>
+          <div class="col-6 col-md-3">
+            <div style="font-family:var(--font-display);font-size:var(--text-2xl);font-weight:800;color:var(--trail-bright);">{{ stats.pinned_count }}</div>
+            <div class="eyebrow">Pinned Spots</div>
+          </div>
+        </div>
+        <div class="mt-3 pill-row">
+          <span class="diff-badge diff-green">{{ stats.green_count }} Easy</span>
+          <span class="diff-badge diff-blue">{{ stats.blue_count }} Moderate</span>
+          <span class="diff-badge diff-red">{{ stats.red_count }} Difficult</span>
+          <span class="diff-badge diff-black">{{ stats.black_count }} Severe</span>
+        </div>
+      </div>
+
+      {% if map_data %}
+      <div class="trail-panel mb-4">
+        <h5>&#128506; {{ profile.user.username }}'s Trails Map</h5>
+        <div id="profile-map" style="height:300px;"></div>
+      </div>
+      {{ map_data|json_script:"profile-map-data" }}
+      <script>
+        document.addEventListener('DOMContentLoaded', function () {
+          var raw = document.getElementById('profile-map-data');
+          var posts = raw ? JSON.parse(raw.textContent) : [];
+          renderTrailMap('profile-map', posts);
+        });
+      </script>
+      {% endif %}
+
+      <div class="trail-panel mb-4">
+        <h5 style="margin-bottom:var(--space-2);">&#128338; Recent Trails</h5>
+        {% if recent_trails %}
+          {% for trail in recent_trails %}
+            <div class="d-flex justify-content-between align-items-center py-2" style="border-bottom:1px solid var(--trail-border);">
+              <div>
+                <a href="{% url 'post_show' trail.id %}" style="color:var(--trail-text);font-weight:600;">{{ trail.body|truncatechars:60 }}</a>
+                <div style="font-size:.75rem;color:var(--trail-muted);">
+                  {% if trail.length_km %}&#128692; {{ trail.length_km }} km&nbsp;&nbsp;{% endif %}
+                  {% if trail.total_ascent_m %}&#9968; {{ trail.total_ascent_m }} m{% endif %}
+                </div>
+              </div>
+              <div>
+                {% if trail.difficulty %}<span class="diff-badge diff-{{ trail.difficulty }}">{{ trail.difficulty_label }}</span>{% endif %}
+              </div>
+            </div>
+          {% endfor %}
+        {% else %}
+          <div class="empty-state" style="padding:var(--space-8) var(--space-4);">
+            <div class="empty-state-icon">&#128507;</div>
+            <div class="empty-state-text">No pinned or mapped trails yet.</div>
+          </div>
+        {% endif %}
+      </div>
+
+      <div class="feed-layout">
+        <div class="feed-main">
+          {% for post in posts %}
+            <article class="post-card">
+              <div class="post-card-header">
+                {% if post.user.profile.profile_image %}
+                  <img src="{{ post.user.profile.profile_image.url }}" class="post-avatar" alt="{{ post.user.username }}'s profile image">
+                {% else %}
+                  <img src="{% static 'images/default.jpg' %}" class="post-avatar" alt="Profile image">
+                {% endif %}
+                <div class="post-card-byline">
+                  <a href="{% url 'profile' post.user.id %}" class="post-card-username">@{{ post.user.username|lower }}</a>
+                  <span class="post-card-time">{{ post.created_at }}</span>
+                </div>
+              </div>
+
+              {% if post.post_media %}
+                <div class="post-card-media">
+                  {% if post.is_video %}
+                    <video src="{{ post.post_media.url }}" controls preload="metadata"></video>
+                  {% else %}
+                    <img src="{{ post.post_media.url }}" alt="Post media">
+                  {% endif %}
+                </div>
+              {% endif %}
+
+              <p class="post-card-body">{{ post.body }}</p>
+
+              <div class="post-card-footer">
+                {% if user in post.likes.all %}
+                  <a href="{% url 'post_like' post.id %}" class="post-action is-active"><span class="post-action-icon">&#9829;</span>Unlike &middot; {{ post.number_of_likes }}</a>
+                {% else %}
+                  <a href="{% url 'post_like' post.id %}" class="post-action"><span class="post-action-icon">&#9825;</span>Like &middot; {{ post.number_of_likes }}</a>
+                {% endif %}
+                <a href="{% url 'post_show' post.id %}" class="post-action"><span class="post-action-icon">&#128172;</span>Comment</a>
+                <a href="{% url 'post_show' post.id %}" class="post-action"><span class="post-action-icon">&#8599;</span>Share</a>
+                {% if request.user.username == post.user.username %}
+                  <a href="{% url 'edit_post' post.id %}" class="post-action"><span class="post-action-icon">&#9998;</span>Edit</a>
+                  <a href="{% url 'delete_post' post.id %}" class="post-action"><span class="post-action-icon">&#128465;</span>Delete</a>
+                {% endif %}
+              </div>
+
+              {% if post.comments.all %}
+                <div class="comments-thread">
+                  {% for comment in post.comments.all %}
+                    <div class="comment-row">
+                      {% if comment.user.profile.profile_image %}
+                        <img src="{{ comment.user.profile.profile_image.url }}" class="comment-avatar" alt="">
+                      {% else %}
+                        <img src="{% static 'images/default.jpg' %}" class="comment-avatar" alt="">
+                      {% endif %}
+                      <div class="comment-bubble">
+                        <a href="{% url 'profile' comment.user.id %}" style="color:inherit;"><strong>@{{ comment.user.username|lower }}</strong></a>
+                        <span class="comment-time">{{ comment.created_at }}</span><br>
+                        {% if comment.text %}{{ comment.text }}{% endif %}
+                        {% include '_comment_media.html' %}
+                      </div>
+                    </div>
+                  {% endfor %}
+                </div>
+              {% endif %}
+
+              {% include '_comment_composer.html' %}
+            </article>
+          {% empty %}
+            <div class="empty-state surface">
+              <div class="empty-state-icon">&#128683;</div>
+              <div class="empty-state-text">{{ profile.user.username }} hasn't posted any trails yet.</div>
+            </div>
+          {% endfor %}
+        </div>
+
+        <aside class="feed-sidebar" style="position:static;">
+          {% if profile.homepage_link or profile.facebook_link or profile.instagram_link or profile.linkedin_link %}
+          <div class="surface" style="padding:var(--space-4);">
+            <div class="pill-row">
+              {% if profile.homepage_link %}<a href="{{ profile.homepage_link }}" target="new" class="btn btn-outline-secondary btn-sm">Home Page</a>{% endif %}
+              {% if profile.facebook_link %}<a href="{{ profile.facebook_link }}" target="new" class="btn btn-outline-secondary btn-sm">Facebook</a>{% endif %}
+              {% if profile.instagram_link %}<a href="{{ profile.instagram_link }}" target="new" class="btn btn-outline-secondary btn-sm">Instagram</a>{% endif %}
+              {% if profile.linkedin_link %}<a href="{{ profile.linkedin_link }}" target="new" class="btn btn-outline-secondary btn-sm">LinkedIn</a>{% endif %}
+            </div>
+          </div>
+          {% endif %}
+
+          {% if profile.profile_bio %}
+            <div class="surface" style="padding:var(--space-4);">
+              <p style="margin:0;">{{ profile.profile_bio }}</p>
+            </div>
+          {% endif %}
+
+          <div class="surface" style="padding:var(--space-4);">
+            <h6 style="margin-bottom:var(--space-2);">Follows</h6>
+            {% for following in profile.follows.all %}
+              <div class="d-flex justify-content-between align-items-center" style="margin-bottom:var(--space-1);">
+                <a href="{% url 'profile' following.user.id %}">@{{ following }}</a>
+                <a href="{% url 'unfollow' following.user.id %}" class="btn-ghost btn btn-sm">Unfollow</a>
+              </div>
+            {% empty %}
+              <span style="font-size:var(--text-xs);color:var(--trail-muted);">Not following anyone yet.</span>
+            {% endfor %}
+          </div>
+
+          <div class="surface" style="padding:var(--space-4);">
+            <h6 style="margin-bottom:var(--space-2);">Followed By</h6>
+            {% for following in profile.followed_by.all %}
+              <div class="d-flex justify-content-between align-items-center" style="margin-bottom:var(--space-1);">
+                <a href="{% url 'profile' following.user.id %}">@{{ following }}</a>
+                {% if following in profile.follows.all %}
+                  <a href="{% url 'unfollow' following.user.id %}" class="btn-ghost btn btn-sm">Unfollow</a>
+                {% else %}
+                  <a href="{% url 'follow' following.user.id %}" class="btn-ghost btn btn-sm">Follow</a>
+                {% endif %}
+              </div>
+            {% empty %}
+              <span style="font-size:var(--text-xs);color:var(--trail-muted);">No followers yet.</span>
+            {% endfor %}
+          </div>
+
+          <form method="POST">
+            {% csrf_token %}
+            {% if profile in user.profile.follows.all %}
+              <button class="btn btn-outline-danger" style="width:100%;" name="follow" value="unfollow" type="submit">
+                Unfollow @{{ profile.user.username|lower }}</button>
+            {% else %}
+              <button class="btn btn-primary" style="width:100%;" name="follow" value="follow" type="submit">
+                Follow @{{ profile.user.username|lower }}</button>
+            {% endif %}
+          </form>
+
+          {% if request.user.id == profile.user.id %}
+            <a href="{% url 'update_user' %}" class="btn btn-outline-info" style="width:100%;">Update Profile</a>
+          {% endif %}
+        </aside>
+      </div>
+    </div>
+  {% endif %}
+{% endblock content %}

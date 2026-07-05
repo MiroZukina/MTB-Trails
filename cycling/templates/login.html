@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block title %}Login | {% endblock %}
+{% block content %}
+  <div style="max-width:420px;margin-inline:auto;">
+    <span class="eyebrow">Welcome back</span>
+    <h1 style="margin-bottom:var(--space-4);">Login</h1>
+
+    <form method="POST" action="{% url 'login' %}" class="surface" style="padding:var(--space-6);">
+       {% csrf_token %}
+       <div class="mb-3">
+         <label for="login-username">Username</label>
+         <input id="login-username" type="text" class="form-control" name="username" placeholder="Enter your username">
+       </div>
+       <div class="mb-3">
+         <label for="login-password">Password</label>
+         <input id="login-password" type="password" class="form-control" name="password" placeholder="Enter your password">
+       </div>
+       <button type="submit" class="btn btn-primary" style="width:100%;">Login</button>
+     </form>
+     <div class="text-center mt-3">
+        <a href="{% url 'password_reset' %}" style="font-size:var(--text-xs);">Forgot Password?</a>
+     </div>
+     <div class="text-center mt-2">
+          <span style="font-size:var(--text-xs);color:var(--trail-muted);">
+            New here? <a href="{% url 'register' %}">Create an account</a>
+          </span>
+      </div>
+   </div>
+{% endblock content %}

@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+<div style="max-width:560px;margin-inline:auto;">
+    <span class="eyebrow">Marketplace</span>
+    <h1 class="mb-4">{{ title }}</h1>
+
+    <form method="post" action="." enctype="multipart/form-data" class="surface" style="padding:var(--space-6);">
+        {% csrf_token %}
+        {{ form.non_field_errors }}
+
+        {% for field in form.visible_fields %}
+            <div class="mb-3">
+                {% if field.name == 'image' %}
+                    <div class="dropzone" data-dropzone>
+                        <label class="dropzone-btn" for="{{ field.id_for_label }}">
+                            <span class="dropzone-icon">&#128247;</span><span>{{ field.label }}</span>
+                        </label>
+                        <div class="dropzone-field">{{ field }}</div>
+                    </div>
+                {% else %}
+                    {{ field.label_tag }}
+                    {{ field }}
+                {% endif %}
+                {{ field.errors }}
+            </div>
+        {% endfor %}
+        {% for hidden in form.hidden_fields %}{{ hidden }}{% endfor %}
+
+        <button class="btn btn-primary" style="width:100%;">Submit</button>
+    </form>
+</div>
+{% endblock %}

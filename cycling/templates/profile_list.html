@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}Riders | {% endblock %}
+{% block content %}
+  <span class="eyebrow">MTBTrails community</span>
+  <h1 style="margin-bottom:var(--space-4);">Riders</h1>
+
+  {% if profiles %}
+    <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-3">
+      {% for profile in profiles %}
+        <div class="col">
+          <a href="{% url 'profile' profile.user.id %}" class="card h-100" style="display:flex;flex-direction:row;align-items:center;gap:var(--space-3);padding:var(--space-4);text-decoration:none;">
+            {% if profile.profile_image %}
+              <img src="{{ profile.profile_image.url }}" class="avatar-circle" style="width:56px;height:56px;flex-shrink:0;" alt="{{ profile.user.username }}">
+            {% else %}
+              <span class="avatar-initial" style="width:56px;height:56px;font-size:var(--text-lg);flex-shrink:0;">{{ profile.user.username|slice:":1"|upper }}</span>
+            {% endif %}
+            <div style="min-width:0;">
+              <div class="post-card-username">@{{ profile.user.username|lower }}</div>
+              <div style="font-size:var(--text-xs);color:var(--trail-muted);">Active {{ profile.date_modified|timesince }} ago</div>
+            </div>
+          </a>
+        </div>
+      {% endfor %}
+    </div>
+  {% else %}
+    <div class="empty-state surface">
+      <div class="empty-state-icon">&#128101;</div>
+      <div class="empty-state-text">No other riders have joined yet. Invite your crew!</div>
+    </div>
+  {% endif %}
+{% endblock content %}

@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Server Error | MTBTrails</title>
+  <!--
+    Deliberately self-contained: Django renders 500.html without request
+    context (no context processors, and no template-extends chain evaluated
+    against a request), and the error itself could be static-file related,
+    so this page avoids static/url template tags and any app-state dependency.
+  -->
+  <style>
+    body {
+      background: #141a10;
+      color: #e8efe2;
+      font-family: -apple-system, system-ui, sans-serif;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0;
+      text-align: center;
+      padding: 24px;
+    }
+    .card {
+      background: #1d2617;
+      border: 1px solid #33422a;
+      border-radius: 14px;
+      padding: 48px 32px;
+      max-width: 420px;
+    }
+    .icon { font-size: 40px; margin-bottom: 8px; }
+    h1 { font-size: 22px; margin: 0 0 8px; color: #cfe8a6; }
+    p { color: #9aad8e; font-size: 15px; margin: 0 0 24px; }
+    a {
+      display: inline-block;
+      background: #a3e635;
+      color: #10160b;
+      font-weight: 600;
+      text-decoration: none;
+      padding: 10px 20px;
+      border-radius: 10px;
+    }
+    a:hover { background: #b8f261; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="icon">&#9888;&#65039;</div>
+    <h1>500 — Something Broke on the Trail</h1>
+    <p>We hit an unexpected error. It's been logged — try heading back and giving it another go.</p>
+    <a href="/">Back to the feed</a>
+  </div>
+</body>
+</html>

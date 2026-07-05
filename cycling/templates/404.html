@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% block title %}Page Not Found | MTBTrails{% endblock %}
+{% block content %}
+  <div class="empty-state surface" style="margin-top:var(--space-8);">
+    <div class="empty-state-icon">&#128683;</div>
+    <h1 style="margin-bottom:var(--space-2);">404 — Trail Not Found</h1>
+    <div class="empty-state-text">This page took a wrong turn somewhere. Let's get you back on route.</div>
+    <a href="{% url 'home' %}" class="btn btn-primary">Back to the feed</a>
+  </div>
+{% endblock content %}

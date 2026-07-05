@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Marketplace{% endblock %}
+
+{% block content %}
+<div class="mt-4">
+  <span class="eyebrow">MTBTrails</span>
+  <h1 style="margin-bottom:var(--space-4);">Marketplace</h1>
+
+  <div class="trail-panel mb-4">
+    <h2 style="font-size:var(--text-lg);margin-bottom:var(--space-4);text-align:center;">Newest Items</h2>
+    {% if items %}
+      <div class="row row-cols-1 row-cols-md-3 g-3">
+        {% for item in items %}
+          <div class="col">
+            <a href="{% url 'item:detail' item.id %}" style="text-decoration:none;">
+              <div class="card h-100">
+                {% if item.image %}
+                  <img src="{{ item.image.url }}" class="card-img-top" alt="{{ item.name }}">
+                {% elif item.media_url %}
+                  <img src="{{ item.media_url }}" class="card-img-top" alt="{{ item.name }}" loading="lazy" onerror="this.style.display='none';">
+                {% endif %}
+                <div class="card-body">
+                  <h5 class="card-title" style="margin-bottom:4px;">{{ item.name }}</h5>
+                  <p class="text-muted mb-0">&euro;{{ item.price }}</p>
+                </div>
+              </div>
+            </a>
+          </div>
+        {% endfor %}
+      </div>
+    {% else %}
+      <div class="empty-state">
+        <div class="empty-state-icon">&#128717;</div>
+        <div class="empty-state-text">No items listed yet.</div>
+        {% if user.is_authenticated %}<a href="{% url 'item:new' %}" class="btn btn-primary">Sell an item</a>{% endif %}
+      </div>
+    {% endif %}
+  </div>
+
+  <div class="trail-panel">
+    <h2 style="font-size:var(--text-lg);margin-bottom:var(--space-4);text-align:center;">Categories</h2>
+    {% if categories %}
+      <div class="row row-cols-1 row-cols-md-3 g-3">
+        {% for category in categories %}
+          <div class="col">
+            <a href="{% url 'item:items' %}?category={{ category.id }}" style="text-decoration:none;">
+              <div class="card h-100">
+                <div class="card-body">
+                  <h5 class="card-title" style="margin-bottom:4px;">{{ category.name }}</h5>
+                  <p class="text-muted mb-0">{{ category.items.count }} items</p>
+                </div>
+              </div>
+            </a>
+          </div>
+        {% endfor %}
+      </div>
+    {% else %}
+      <div class="empty-state">
+        <div class="empty-state-icon">&#128193;</div>
+        <div class="empty-state-text">No categories yet.</div>
+      </div>
+    {% endif %}
+  </div>
+
+</div>
+{% endblock %}

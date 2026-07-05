@@ -1,0 +1,21 @@
+{% if comment.media %}
+  {% if comment.is_video %}
+    <video class="comment-media-rendered" src="{{ comment.media.url }}" controls preload="metadata"></video>
+  {% else %}
+    <img class="comment-media-rendered" src="{{ comment.media.url }}" alt="Comment media">
+  {% endif %}
+{% elif comment.youtube_embed_url %}
+  <iframe class="comment-media-embed" src="{{ comment.youtube_embed_url }}" title="YouTube video" frameborder="0"
+          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen loading="lazy"></iframe>
+{% elif comment.media_url_is_video %}
+  <video class="comment-media-rendered" src="{{ comment.media_url }}" controls preload="metadata"></video>
+{% elif comment.media_url_is_image %}
+  <img class="comment-media-rendered" src="{{ comment.media_url }}" alt="Comment media" loading="lazy" onerror="this.style.display='none';">
+{% endif %}
+{% if comment.attachment %}
+  <a href="{{ comment.attachment.url }}" download class="attachment-chip">
+    <span class="attachment-chip-icon">{{ comment.attachment_icon }}</span>
+    <span class="attachment-chip-name">{{ comment.attachment_filename }}</span>
+    <span class="attachment-chip-size">{{ comment.attachment_size_display }}</span>
+  </a>
+{% endif %}

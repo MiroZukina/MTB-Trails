@@ -1,0 +1,260 @@
+<div class="mt-3 mb-3">
+  <div class="d-flex gap-2 mb-2 align-items-center">
+    <div class="btn-group flex-grow-1" role="group" aria-label="Map mode">
+      <button type="button" id="mp-pin-btn" class="btn btn-sm btn-primary">&#128205; Pin Location</button>
+      <button type="button" id="mp-draw-btn" class="btn btn-sm btn-outline-secondary">&#9998; Draw Trail</button>
+      <button type="button" id="mp-gpx-btn" class="btn btn-sm btn-outline-secondary">&#128228; Upload GPX</button>
+    </div>
+    <select id="mp-difficulty" class="select" style="min-width:150px;padding:6px 10px;min-height:32px;font-size:0.78rem;">
+      <option value="">&#127758; Difficulty</option>
+      <option value="green">&#129001; Easy</option>
+      <option value="blue">&#128309; Moderate</option>
+      <option value="red">&#128308; Difficult</option>
+      <option value="black">&#9899; Severe</option>
+    </select>
+  </div>
+
+  <!-- GPX mode controls (hidden by default) -->
+  <div id="mp-gpx-ctrl" style="display:none;margin-bottom:0.6rem;">
+    <button type="button" id="mp-gpx-choose" class="btn btn-secondary btn-sm">
+      &#128194; Choose GPX file&hellip;
+    </button>
+    <span id="mp-gpx-name" class="chip" style="margin-left:0.5rem;" hidden></span>
+  </div>
+
+  <div id="mp-map" style="height:300px;"></div>
+  <div id="mp-status" style="font-size:0.75rem;color:var(--trail-muted);margin-top:0.3rem;min-height:1.1em;padding:0 2px;"></div>
+  <div id="mp-draw-ctrl" style="display:none;gap:0.5rem;margin-top:0.5rem;">
+    <button type="button" id="mp-undo"  class="btn btn-outline-secondary btn-sm">&#8617; Undo</button>
+    <button type="button" id="mp-clear" class="btn btn-outline-danger btn-sm">&#10005; Clear Trail</button>
+  </div>
+</div>
+
+<script>
+(function () {
+  var latEl    = document.getElementById('id_latitude');
+  var lngEl    = document.getElementById('id_longitude');
+  var nameEl   = document.getElementById('id_location_name');
+  var routeEl  = document.getElementById('id_route');
+  var diffEl   = document.getElementById('id_difficulty');
+  var diffSel  = document.getElementById('mp-difficulty');
+  var gpxInput = document.getElementById('id_gpx_file');
+  if (!latEl) return; // guard: form not on this page
+
+  // Sync difficulty select ↔ hidden input
+  if (diffEl && diffSel) {
+    diffSel.value = diffEl.value || '';
+    diffSel.addEventListener('change', function () { diffEl.value = diffSel.value; });
+  }
+
+  // Parse any existing values (editing a post)
+  var iLat = parseFloat(latEl.value) || null;
+  var iLng = parseFloat(lngEl.value) || null;
+  var iRoute = null;
+  try { iRoute = JSON.parse(routeEl.value); } catch (e) {}
+  if (!Array.isArray(iRoute) || !iRoute.length) iRoute = null;
+
+  var mode   = iRoute ? 'draw' : 'pin';
+  var pts    = iRoute ? iRoute.map(function(p){ return [+p[0], +p[1]]; }) : [];
+  var marker = null, poly = null;
+
+  var center = iRoute ? [iRoute[0][0], iRoute[0][1]]
+             : (iLat   ? [iLat, iLng] : [53.35, -6.26]);
+  var zoom   = iRoute ? 12 : (iLat ? 13 : 9);
+
+  var map = L.map('mp-map', { center: center, zoom: zoom });
+  L.tileLayer('https://{s}.tile-cyclosm.openstreetmap.fr/cyclosm/{z}/{x}/{y}.png', {
+    maxZoom: 20,
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors | <a href="https://www.cyclosm.org">CyclOSM</a>'
+  }).addTo(map);
+  setTimeout(function () { map.invalidateSize(); }, 150);
+
+  /* ── helpers ── */
+  function hav(a, b) {
+    var R = 6371, dLat = (b[0]-a[0])*Math.PI/180, dLon = (b[1]-a[1])*Math.PI/180;
+    var s = Math.sin(dLat/2)*Math.sin(dLat/2) +
+            Math.cos(a[0]*Math.PI/180)*Math.cos(b[0]*Math.PI/180)*
+            Math.sin(dLon/2)*Math.sin(dLon/2);
+    return R * 2 * Math.atan2(Math.sqrt(s), Math.sqrt(1-s));
+  }
+  function trailKm() {
+    var d = 0;
+    for (var i = 1; i < pts.length; i++) d += hav(pts[i-1], pts[i]);
+    return d.toFixed(1);
+  }
+  function setStatus(msg) { document.getElementById('mp-status').textContent = msg; }
+  function refreshStatus() {
+    if (mode === 'pin') {
+      if (latEl.value && lngEl.value) {
+        setStatus(parseFloat(latEl.value).toFixed(4) + '°, ' +
+                  parseFloat(lngEl.value).toFixed(4) + '°' +
+                  (nameEl.value ? '  ·  ' + nameEl.value : ''));
+      } else {
+        setStatus('Click the map to pin a location');
+      }
+    } else if (mode === 'draw') {
+      setStatus(!pts.length
+        ? 'Click the map to start drawing your trail'
+        : pts.length + ' point' + (pts.length === 1 ? '' : 's') + '  ·  ~' + trailKm() + ' km');
+    } else { // gpx
+      var f = gpxInput && gpxInput.files[0];
+      setStatus(f ? f.name + ' — ready to upload' : 'Choose a .gpx file to upload');
+    }
+  }
+
+  function clearMap() {
+    if (poly)   { map.removeLayer(poly);   poly = null; }
+    if (marker) { map.removeLayer(marker); marker = null; }
+  }
+  function placeMarker(lat, lng) {
+    if (marker) { map.removeLayer(marker); marker = null; }
+    marker = L.marker([lat, lng]).addTo(map);
+  }
+  function redrawPoly() {
+    if (poly) { map.removeLayer(poly); poly = null; }
+    if (pts.length > 1) {
+      poly = L.polyline(pts, { color: '#e03030', weight: 4, opacity: 0.85 }).addTo(map);
+    }
+    routeEl.value = pts.length ? JSON.stringify(pts) : '';
+    if (pts.length) {
+      latEl.value = pts[0][0].toFixed(6);
+      lngEl.value = pts[0][1].toFixed(6);
+      placeMarker(pts[0][0], pts[0][1]);
+    }
+    refreshStatus();
+  }
+
+  function applyModeUI() {
+    var pinBtn  = document.getElementById('mp-pin-btn');
+    var drawBtn = document.getElementById('mp-draw-btn');
+    var gpxBtn  = document.getElementById('mp-gpx-btn');
+    var drawCtrl = document.getElementById('mp-draw-ctrl');
+    var gpxCtrl  = document.getElementById('mp-gpx-ctrl');
+
+    pinBtn.className  = 'btn btn-sm ' + (mode === 'pin'  ? 'btn-primary' : 'btn-outline-secondary');
+    drawBtn.className = 'btn btn-sm ' + (mode === 'draw' ? 'btn-primary' : 'btn-outline-secondary');
+    gpxBtn.className  = 'btn btn-sm ' + (mode === 'gpx'  ? 'btn-primary' : 'btn-outline-secondary');
+    drawCtrl.style.display = mode === 'draw' ? 'flex' : 'none';
+    gpxCtrl.style.display  = mode === 'gpx'  ? 'block' : 'none';
+    refreshStatus();
+  }
+
+  function geocode(lat, lng) {
+    fetch('https://nominatim.openstreetmap.org/reverse?format=json&lat=' + lat + '&lon=' + lng + '&zoom=14')
+      .then(function(r){ return r.json(); })
+      .then(function(d){
+        nameEl.value = d.display_name ? d.display_name.split(',').slice(0, 3).join(', ') : '';
+        refreshStatus();
+      }).catch(function(){});
+  }
+
+  /* ── restore initial state (editing a post) ── */
+  if (iRoute) {
+    redrawPoly();
+    if (poly) map.fitBounds(poly.getBounds(), { padding: [20, 20] });
+    else if (pts.length) map.setView(pts[0], 13);
+  } else if (iLat && iLng) {
+    placeMarker(iLat, iLng);
+  }
+  applyModeUI();
+
+  /* ── map click ── */
+  map.on('click', function (e) {
+    if (mode === 'gpx') return; // GPX mode: clicks do nothing
+    var lat = +e.latlng.lat.toFixed(6), lng = +e.latlng.lng.toFixed(6);
+    if (mode === 'pin') {
+      placeMarker(lat, lng);
+      latEl.value   = lat;
+      lngEl.value   = lng;
+      routeEl.value = '';
+      refreshStatus();
+      geocode(lat, lng);
+    } else {
+      pts.push([lat, lng]);
+      if (pts.length === 1) geocode(lat, lng);
+      redrawPoly();
+    }
+  });
+
+  /* ── mode buttons ── */
+  document.getElementById('mp-pin-btn').addEventListener('click', function () {
+    if (mode === 'pin') return;
+    pts = []; clearMap();
+    routeEl.value = ''; latEl.value = ''; lngEl.value = ''; nameEl.value = '';
+    if (gpxInput) gpxInput.value = '';
+    mode = 'pin'; applyModeUI();
+  });
+  document.getElementById('mp-draw-btn').addEventListener('click', function () {
+    if (mode === 'draw') return;
+    clearMap();
+    latEl.value = ''; lngEl.value = ''; nameEl.value = '';
+    if (gpxInput) gpxInput.value = '';
+    mode = 'draw'; applyModeUI();
+  });
+  document.getElementById('mp-gpx-btn').addEventListener('click', function () {
+    if (mode === 'gpx') return;
+    pts = []; clearMap();
+    routeEl.value = ''; latEl.value = ''; lngEl.value = ''; nameEl.value = '';
+    mode = 'gpx'; applyModeUI();
+  });
+
+  /* ── GPX: choose-file button triggers hidden file input ── */
+  document.getElementById('mp-gpx-choose').addEventListener('click', function () {
+    if (gpxInput) gpxInput.click();
+  });
+
+  /* ── GPX: client-side preview on file selection ── */
+  if (gpxInput) {
+    gpxInput.addEventListener('change', function () {
+      var file = this.files[0];
+      var nameSpan = document.getElementById('mp-gpx-name');
+      if (!file) { if (nameSpan) { nameSpan.textContent = ''; nameSpan.hidden = true; } return; }
+      if (nameSpan) { nameSpan.textContent = file.name; nameSpan.hidden = false; }
+
+      var reader = new FileReader();
+      reader.onload = function (e) {
+        try {
+          var parser = new DOMParser();
+          var xml = parser.parseFromString(e.target.result, 'application/xml');
+          // Try track points first, then route points
+          var nodes = Array.from(xml.querySelectorAll('trkpt'));
+          if (!nodes.length) nodes = Array.from(xml.querySelectorAll('rtept'));
+          var preview = [];
+          nodes.forEach(function (pt) {
+            var lat = parseFloat(pt.getAttribute('lat'));
+            var lon = parseFloat(pt.getAttribute('lon'));
+            if (!isNaN(lat) && !isNaN(lon)) preview.push([lat, lon]);
+          });
+          if (preview.length < 2) {
+            setStatus('No valid track points found in ' + file.name);
+            return;
+          }
+          clearMap();
+          poly = L.polyline(preview, { color: '#e03030', weight: 4, opacity: 0.85 }).addTo(map);
+          marker = L.marker(preview[0]).addTo(map);
+          map.fitBounds(poly.getBounds(), { padding: [20, 20] });
+          setStatus(preview.length + ' preview points · ' + file.name + ' — will parse server-side on submit');
+        } catch (err) {
+          setStatus('Could not preview GPX: ' + err.message);
+        }
+      };
+      reader.readAsText(file);
+    });
+  }
+
+  /* ── draw controls ── */
+  document.getElementById('mp-undo').addEventListener('click', function () {
+    if (!pts.length) return;
+    pts.pop();
+    if (marker) { map.removeLayer(marker); marker = null; }
+    if (!pts.length) { latEl.value = ''; lngEl.value = ''; }
+    redrawPoly();
+  });
+  document.getElementById('mp-clear').addEventListener('click', function () {
+    pts = []; clearMap();
+    routeEl.value = ''; latEl.value = ''; lngEl.value = ''; nameEl.value = '';
+    refreshStatus();
+  });
+
+})();
+</script>

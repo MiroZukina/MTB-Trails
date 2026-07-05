@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+
+{% block title %}Marketplace{% endblock %}
+
+{% block content %}
+    <div class="feed-layout" style="grid-template-columns: 260px minmax(0,1fr);">
+        <aside class="feed-sidebar" style="position:static;">
+            <form method="get" action="{% url 'item:items' %}" class="surface" style="padding:var(--space-4);">
+                <label for="item-search">Search</label>
+                <input id="item-search" name="query" class="form-control mb-2" type="text" value="{{ query }}" placeholder="Find a bike...">
+                <button class="btn btn-primary" style="width:100%;">Search</button>
+            </form>
+
+            <div class="surface" style="padding:var(--space-4);">
+                <h6 style="margin-bottom:var(--space-2);">Categories</h6>
+                <ul class="list-unstyled" style="margin:0;">
+                    {% for category in categories %}
+                        <li style="margin-bottom:6px;">
+                            <a href="{% url 'item:items' %}?query={{ query }}&category={{ category.id }}"
+                               class="list-link{% if category.id == category_id %} is-active{% endif %}">
+                                {{ category.name }}
+                            </a>
+                        </li>
+                    {% endfor %}
+                </ul>
+            </div>
+
+            <a href="{% url 'item:items' %}" class="btn btn-outline-secondary" style="width:100%;">Clear filters</a>
+        </aside>
+
+        <div class="feed-main">
+            {% if items %}
+                <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-3">
+                    {% for item in items %}
+                        <div class="col mb-4">
+                            <a href="{% url 'item:detail' item.id %}" style="text-decoration:none;">
+                                <div class="card h-100">
+                                    {% if item.image %}
+                                        <img src="{{ item.image.url }}" class="card-img-top" alt="{{ item.name }}">
+                                    {% elif item.media_url %}
+                                        <img src="{{ item.media_url }}" class="card-img-top" alt="{{ item.name }}" loading="lazy" onerror="this.style.display='none';">
+                                    {% endif %}
+                                    <div class="card-body">
+                                        <h5 class="card-title" style="margin-bottom:4px;">{{ item.name }}</h5>
+                                        <p class="card-text" style="color:var(--trail-muted);margin:0;">&euro;{{ item.price }}</p>
+                                    </div>
+                                </div>
+                            </a>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <div class="empty-state surface">
+                    <div class="empty-state-icon">&#128717;</div>
+                    <div class="empty-state-text">No items match your search yet.</div>
+                    <a href="{% url 'item:items' %}" class="btn btn-primary">Clear filters</a>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+{% endblock %}

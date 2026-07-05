@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}Edit | {% endblock %}
+{% block content %}
+  <div class="feed-layout">
+    <div class="feed-main" style="max-width:640px;">
+      <article class="post-card">
+        <div class="post-card-header">
+          {% if post.user.profile.profile_image %}
+            <img src="{{ post.user.profile.profile_image.url }}" class="post-avatar" alt="{{ post.user.username }}'s profile image">
+          {% else %}
+            <img src="{% static 'images/default.jpg' %}" class="post-avatar" alt="Profile image">
+          {% endif %}
+          <div class="post-card-byline">
+            <span class="post-card-username">@{{ post.user.username|lower }}</span>
+            <span class="post-card-time">{{ post.created_at }}</span>
+          </div>
+        </div>
+
+        {% if post.post_media %}
+          <div class="post-card-media">
+            {% if post.is_video %}
+              <video src="{{ post.post_media.url }}" controls preload="metadata"></video>
+            {% else %}
+              <img src="{{ post.post_media.url }}" alt="Post media">
+            {% endif %}
+          </div>
+        {% endif %}
+
+        <p class="post-card-body">{{ post.body }}</p>
+        <div class="post-card-footer" style="border-top:none;padding-top:0;margin-top:0;">
+          <span class="post-action" style="cursor:default;">&#9829; {{ post.number_of_likes }} likes</span>
+        </div>
+      </article>
+
+      {% if form %}
+        <div class="composer is-open">
+          <h2 style="margin-bottom:var(--space-4);">Edit trail post</h2>
+          <div class="composer-body" style="display:block;">
+            <form method="POST" enctype="multipart/form-data">
+              {% csrf_token %}
+              {{ form.non_field_errors }}
+              {{ form.body.errors }}
+              {{ form.body }}
+
+              <div class="dropzone" data-dropzone>
+                <label class="dropzone-btn" for="{{ form.post_media.id_for_label }}">
+                  <span class="dropzone-icon">&#128247;</span><span>Add photo/video</span>
+                </label>
+                <div class="dropzone-field">{{ form.post_media }}</div>
+              </div>
+              {{ form.post_media.errors }}
+
+              {{ form.media_url.label_tag }}
+              {{ form.media_url }}
+              {{ form.media_url.errors }}
+
+              <div class="dropzone" data-dropzone>
+                <label class="dropzone-btn" for="{{ form.attachment.id_for_label }}">
+                  <span class="dropzone-icon">&#128206;</span><span>Attach file</span>
+                </label>
+                <div class="dropzone-field">{{ form.attachment }}</div>
+              </div>
+              {{ form.attachment.errors }}
+              <input type="file" id="id_gpx_file" name="gpx_file" accept=".gpx" style="display:none">
+
+              {{ form.latitude }}{{ form.longitude }}{{ form.location_name }}{{ form.route }}{{ form.difficulty }}
+
+              <button type="submit" class="btn btn-primary mt-3">Save changes</button>
+            </form>
+            {% include 'map_picker.html' %}
+          </div>
+        </div>
+      {% endif %}
+    </div>
+  </div>
+{% endblock content %}

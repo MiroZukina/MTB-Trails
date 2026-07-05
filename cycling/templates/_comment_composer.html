@@ -1,0 +1,25 @@
+<form method="POST" enctype="multipart/form-data" class="comment-composer" data-comment-composer>
+  {% csrf_token %}
+  <input type="hidden" name="post_id" value="{{ post.id }}">
+  {{ comment_form.text }}
+  <div class="comment-composer-actions">
+    <span class="comment-dropzone" data-dropzone>
+      <label class="post-action" for="{{ comment_form.media.id_for_label }}" title="Add photo/video" aria-label="Add photo/video">&#128247;</label>
+      {{ comment_form.media }}
+    </span>
+    <span class="comment-dropzone" data-dropzone>
+      <label class="post-action" for="{{ comment_form.attachment.id_for_label }}" title="Attach file" aria-label="Attach file">&#128206;</label>
+      {{ comment_form.attachment }}
+    </span>
+    <button type="button" class="post-action comment-link-toggle" title="Add link" aria-label="Add link">&#128279;</button>
+    <button type="submit" class="btn btn-secondary btn-sm">Send</button>
+  </div>
+  <div class="comment-link-row" hidden>
+    {{ comment_form.media_url }}
+  </div>
+  {{ comment_form.non_field_errors }}
+  {{ comment_form.text.errors }}
+  {{ comment_form.media.errors }}
+  {{ comment_form.media_url.errors }}
+  {{ comment_form.attachment.errors }}
+</form>

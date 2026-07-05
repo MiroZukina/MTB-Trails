@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}{{ item.name }}{% endblock %}
+
+{% block content %}
+<div class="mt-3">
+    <div class="row g-4">
+        <div class="col-md-12 col-lg-9">
+            <div class="surface" style="overflow:hidden;">
+                {% if item.image %}
+                    <img src="{{ item.image.url }}" style="width:100%;display:block;" alt="{{ item.name }}">
+                {% elif item.media_url %}
+                    <img src="{{ item.media_url }}" style="width:100%;display:block;" alt="{{ item.name }}" loading="lazy" onerror="this.style.display='none';">
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="col-md-12 col-lg-3">
+            <div class="surface" style="padding:var(--space-6);">
+                <span class="eyebrow">{{ item.category.name }}</span>
+                <h1 style="font-size:var(--text-lg);margin-bottom:var(--space-2);">{{ item.name }}</h1>
+                <p style="font-family:var(--font-display);font-size:var(--text-xl);font-weight:800;color:var(--trail-bright);margin-bottom:var(--space-3);">&euro;{{ item.price }}</p>
+                <a href="{% url 'profile' item.created_by.id %}" class="d-block mb-3">Sold by @{{ item.created_by.username|lower }}</a>
+
+                {% if item.description %}
+                    <p style="color:var(--trail-text);">
+                        <strong class="eyebrow">Description</strong><br>
+                        {{ item.description }}
+                    </p>
+                {% endif %}
+
+                {% if request.user == item.created_by %}
+                    <div class="mt-4 pill-row">
+                        <a href="{% url 'item:edit' item.id %}" class="btn btn-outline-secondary btn-sm">Edit</a>
+                        <a href="{% url 'item:delete' item.id %}" class="btn btn-outline-danger btn-sm">Delete</a>
+                    </div>
+                {% else %}
+                    <a href="{% url 'conversation:new' item.id %}" class="btn btn-primary mt-4" style="width:100%;">Contact seller</a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="trail-panel mt-4">
+        <h2 style="font-size:var(--text-lg);text-align:center;margin-bottom:var(--space-4);">Related items</h2>
+
+        {% if related_items %}
+            <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-3">
+                {% for item in related_items %}
+                    <div class="col">
+                        <a href="{% url 'item:detail' item.id %}" style="text-decoration:none;">
+                            <div class="card">
+                                {% if item.image %}
+                                    <img src="{{ item.image.url }}" class="card-img-top" alt="{{ item.name }}">
+                                {% elif item.media_url %}
+                                    <img src="{{ item.media_url }}" class="card-img-top" alt="{{ item.name }}" loading="lazy" onerror="this.style.display='none';">
+                                {% endif %}
+                                <div class="card-body">
+                                    <h2 class="card-title" style="font-size:var(--text-base);margin-bottom:4px;">{{ item.name }}</h2>
+                                    <p class="card-text" style="color:var(--trail-muted);margin:0;">&euro;{{ item.price }}</p>
+                                </div>
+                            </div>
+                        </a>
+                    </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <p style="text-align:center;color:var(--trail-muted);margin:0;">No related items yet.</p>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+
+{% block title %}Inbox{% endblock %}
+
+{% block content %}
+<div class="mt-4">
+    <span class="eyebrow">Marketplace</span>
+    <h1 style="margin-bottom:var(--space-4);">Inbox</h1>
+
+    {% if conversations %}
+        <div class="d-flex flex-column gap-3">
+            {% for conversation in conversations %}
+            <a href="{% url 'conversation:detail' conversation.id %}" style="text-decoration:none;">
+                <div class="card" style="display:flex;flex-direction:row;align-items:center;gap:var(--space-3);padding:var(--space-4);">
+                    <div style="width:64px;height:64px;flex-shrink:0;border-radius:var(--radius-control);overflow:hidden;background:var(--surface-raised);">
+                        {% if conversation.item.image %}
+                            <img src="{{ conversation.item.image.url }}" style="width:100%;height:100%;object-fit:cover;" alt="{{ conversation.item.name }}">
+                        {% elif conversation.item.media_url %}
+                            <img src="{{ conversation.item.media_url }}" style="width:100%;height:100%;object-fit:cover;" alt="{{ conversation.item.name }}" loading="lazy" onerror="this.style.display='none';">
+                        {% endif %}
+                    </div>
+                    <div style="min-width:0;">
+                        {% for member in conversation.members.all %}
+                        {% if member != request.user %}
+                        <div class="post-card-username">@{{ member.username|lower }}</div>
+                        <div style="font-size:var(--text-xs);color:var(--trail-muted);">{{ conversation.item.name }} &middot; {{ conversation.modified_at|timesince }} ago</div>
+                        {% endif %}
+                        {% endfor %}
+                    </div>
+                </div>
+            </a>
+            {% endfor %}
+        </div>
+    {% else %}
+        <div class="empty-state surface">
+            <div class="empty-state-icon">&#128172;</div>
+            <div class="empty-state-text">No messages yet. Reach out to a seller from an item page to start a conversation.</div>
+            <a href="{% url 'item:items' %}" class="btn btn-primary">Browse items</a>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}

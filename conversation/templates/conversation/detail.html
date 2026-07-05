@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+
+{% block title %}Conversation{% endblock %}
+
+{% block content %}
+<div class="mt-4" style="max-width:640px;margin-inline:auto;">
+    <span class="eyebrow">Marketplace</span>
+    <h1 style="margin-bottom:var(--space-4);">Conversation</h1>
+
+    <div class="d-flex flex-column gap-2 mb-4">
+        {% for message in conversation.messages.all %}
+        <div style="display:flex;{% if message.created_by == request.user %}justify-content:flex-end;{% else %}justify-content:flex-start;{% endif %}">
+            <div style="max-width:80%;padding:10px 14px;border-radius:var(--radius-control);
+                        {% if message.created_by == request.user %}background:var(--accent);color:#10160b;{% else %}background:var(--surface-raised);border:1px solid var(--border);color:var(--trail-text);{% endif %}">
+                <div style="font-size:var(--text-xs);font-weight:700;margin-bottom:2px;{% if message.created_by == request.user %}color:#10160b;{% else %}color:var(--trail-heading);{% endif %}">
+                    <a href="{% url 'profile' message.created_by.id %}" style="color:inherit;">{{ message.created_by.username }}</a>
+                    <span style="font-weight:400;opacity:.75;">&middot; {{ message.created_at|timesince }} ago</span>
+                </div>
+                <div>{{ message.content }}</div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <form method="post" action="." class="comment-composer">
+        {% csrf_token %}
+        {{ form.content }}
+        {{ form.content.errors }}
+        <button class="btn btn-primary" type="submit">Send</button>
+    </form>
+</div>
+{% endblock %}

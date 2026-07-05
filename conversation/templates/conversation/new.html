@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+
+{% block title %}New conversation{% endblock %}
+
+{% block content %}
+<div class="mt-4" style="max-width:480px;margin-inline:auto;">
+    <span class="eyebrow">Marketplace</span>
+    <h1 style="margin-bottom:var(--space-4);">Message the seller</h1>
+
+    <form method="post" action="." class="surface" style="padding:var(--space-6);">
+        {% csrf_token %}
+        {{ form.non_field_errors }}
+        {{ form.as_p }}
+        <button class="btn btn-primary" style="width:100%;" type="submit">Send</button>
+    </form>
+</div>
+{% endblock %}

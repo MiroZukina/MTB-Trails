@@ -1,0 +1,259 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}Trail Post | MTBTrails{% endblock %}
+{% block extra_head %}
+{% if post.has_elevations %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js" crossorigin="anonymous"></script>
+{% endif %}
+{% endblock %}
+{% block content %}
+  <div class="feed-layout">
+
+    <!-- Post card column -->
+    <div class="feed-main">
+      <article class="post-card">
+        <div class="post-card-header">
+          {% if post.user.profile.profile_image %}
+            <img src="{{ post.user.profile.profile_image.url }}" class="post-avatar" alt="{{ post.user.username }}'s profile image">
+          {% else %}
+            <img src="{% static 'images/default.jpg' %}" class="post-avatar" alt="Profile image">
+          {% endif %}
+          <div class="post-card-byline">
+            <a href="{% url 'profile' post.user.id %}" class="post-card-username">@{{ post.user.username|lower }}</a>
+            <span class="post-card-time">{{ post.created_at }}</span>
+          </div>
+        </div>
+
+        {% if post.post_media %}
+          <div class="post-card-media">
+            {% if post.is_video %}
+              <video src="{{ post.post_media.url }}" controls preload="metadata"></video>
+            {% else %}
+              <img src="{{ post.post_media.url }}" alt="Post media">
+            {% endif %}
+          </div>
+        {% endif %}
+
+        {% if post.attachment %}
+          <a href="{{ post.attachment.url }}" download class="attachment-chip">
+            <span class="attachment-chip-icon">{{ post.attachment_icon }}</span>
+            <span class="attachment-chip-name">{{ post.attachment_filename }}</span>
+            <span class="attachment-chip-size">{{ post.attachment_size_display }}</span>
+          </a>
+        {% endif %}
+
+        <!-- Trail map -->
+        {% if post.has_route or post.has_location %}
+          <div style="position:relative;margin-bottom:var(--space-3);">
+            <div id="detail-map"
+                 data-lat="{{ post.latitude }}"
+                 data-lng="{{ post.longitude }}"
+                 data-route="{{ post.route_json }}"
+                 data-color="{{ post.difficulty_color }}"
+                 style="height:240px;"></div>
+            <a href="https://www.openstreetmap.org/?mlat={{ post.latitude|default:0 }}&mlon={{ post.longitude|default:0 }}"
+               target="_blank" rel="noopener"
+               style="position:absolute;inset:0;display:block;z-index:1001;border-radius:var(--radius-card);"
+               title="View on OpenStreetMap"></a>
+          </div>
+          <!-- Stats row -->
+          <div style="font-size:var(--text-xs);color:var(--trail-muted);margin-bottom:var(--space-3);">
+            {% if post.location_name %}&#128205; {{ post.location_name }}&nbsp;&nbsp;{% endif %}
+            {% if post.length_km %}&#128692; {{ post.length_km }} km{% endif %}
+            {% if post.total_ascent_m %}&nbsp;&nbsp;&#9968; {{ post.total_ascent_m }} m{% endif %}
+            {% if post.difficulty %}&nbsp;&nbsp;<span class="diff-badge diff-{{ post.difficulty }}">{{ post.difficulty_label }}</span>{% endif %}
+          </div>
+        {% else %}
+          {% if post.difficulty %}
+            <div style="margin-bottom:var(--space-3);">
+              <span class="diff-badge diff-{{ post.difficulty }}">{{ post.difficulty_label }}</span>
+            </div>
+          {% endif %}
+        {% endif %}
+
+        <!-- Elevation profile -->
+        {% if post.has_elevations %}
+          {{ post.elevations|json_script:"elev-data" }}
+          {{ post.route|json_script:"route-data" }}
+          <div style="margin-bottom:var(--space-4);">
+            <span class="eyebrow" style="margin-bottom:var(--space-2);">Elevation profile</span>
+            <div style="height:180px;position:relative;">
+              <canvas id="elev-chart"></canvas>
+            </div>
+          </div>
+        {% endif %}
+
+        <p class="post-card-body">{{ post.body }}</p>
+        <div class="post-card-footer" style="border-top:none;padding-top:0;margin-top:0;">
+          <span class="post-action" style="cursor:default;">&#9829; {{ post.number_of_likes }} likes</span>
+        </div>
+
+        {% if post.comments.all %}
+          <div class="comments-thread" id="comments-{{ post.id }}">
+            {% for comment in post.comments.all %}
+              <div class="comment-row">
+                {% if comment.user.profile.profile_image %}
+                  <img src="{{ comment.user.profile.profile_image.url }}" class="comment-avatar" alt="">
+                {% else %}
+                  <img src="{% static 'images/default.jpg' %}" class="comment-avatar" alt="">
+                {% endif %}
+                <div class="comment-bubble">
+                  <a href="{% url 'profile' comment.user.id %}" style="color:inherit;"><strong>@{{ comment.user.username|lower }}</strong></a>
+                  <span class="comment-time">{{ comment.created_at }}</span><br>
+                  {% if comment.text %}{{ comment.text }}{% endif %}
+                  {% include '_comment_media.html' %}
+                </div>
+              </div>
+            {% endfor %}
+          </div>
+        {% endif %}
+
+        {% if comment_form %}
+          {% include '_comment_composer.html' %}
+        {% endif %}
+      </article>
+    </div>
+
+    <!-- Sidebar: weather at this trail -->
+    {% if trail_weather %}
+    <aside class="feed-sidebar">
+      <div class="surface" style="padding:var(--space-4);">
+        <span class="eyebrow" style="margin-bottom:var(--space-3);">
+          &#127780; Weather at this trail{% if post.location_name %} &middot; {{ post.location_name }}{% endif %}
+        </span>
+        <div class="d-flex align-items-center gap-2 mb-2">
+          <img src="https://openweathermap.org/img/wn/{{ trail_weather.icon }}@2x.png"
+               alt="{{ trail_weather.description }}"
+               style="width:52px;height:52px;filter:drop-shadow(0 1px 4px rgba(163,230,53,0.3));">
+          <div>
+            <div style="font-family:var(--font-display);font-size:var(--text-xl);font-weight:800;color:var(--trail-bright);line-height:1;">
+              {{ trail_weather.temp }}&deg;C
+            </div>
+            <div style="font-size:0.8rem;color:var(--trail-muted);text-transform:capitalize;">
+              {{ trail_weather.description }}
+            </div>
+          </div>
+        </div>
+        <div class="d-flex gap-3" style="font-size:0.8rem;color:var(--trail-muted);">
+          <span>&#128168; <strong style="color:var(--trail-text);">{{ trail_weather.wind_kmh }}</strong> km/h</span>
+          <span>&#128167; <strong style="color:var(--trail-text);">{{ trail_weather.humidity }}</strong>%</span>
+          {% if trail_weather.rain_mm %}
+          <span>&#127783; <strong style="color:var(--trail-text);">{{ trail_weather.rain_mm }}</strong> mm</span>
+          {% endif %}
+        </div>
+      </div>
+    </aside>
+    {% endif %}
+
+  </div>
+
+<script>
+(function () {
+  // Trail map
+  var el = document.getElementById('detail-map');
+  if (el) {
+    var lat   = parseFloat(el.dataset.lat) || null;
+    var lng   = parseFloat(el.dataset.lng) || null;
+    var color = el.dataset.color || '#e03030';
+    var route = null;
+    try { route = JSON.parse(el.dataset.route); } catch (e) {}
+    if (!Array.isArray(route) || !route.length) route = null;
+    if (route || lat) {
+      var m = L.map(el, {
+        dragging: true, scrollWheelZoom: false, doubleClickZoom: false,
+        touchZoom: false, zoomControl: true, attributionControl: false,
+      });
+      L.tileLayer('https://{s}.tile-cyclosm.openstreetmap.fr/cyclosm/{z}/{x}/{y}.png', { maxZoom: 20 }).addTo(m);
+      if (route) {
+        var poly = L.polyline(route, { color: color, weight: 4, opacity: 0.9 }).addTo(m);
+        L.marker([route[0][0], route[0][1]]).addTo(m);
+        m.fitBounds(poly.getBounds(), { padding: [20, 20] });
+      } else {
+        L.marker([lat, lng]).addTo(m);
+        m.setView([lat, lng], 13);
+      }
+    }
+  }
+
+  // Elevation chart
+  var elevEl = document.getElementById('elev-data');
+  var routeEl = document.getElementById('route-data');
+  var canvas = document.getElementById('elev-chart');
+  if (!elevEl || !routeEl || !canvas || typeof Chart === 'undefined') return;
+
+  var elevs  = JSON.parse(elevEl.textContent);
+  var route2 = JSON.parse(routeEl.textContent);
+  if (!elevs || !elevs.length || !route2 || !route2.length) return;
+
+  // Compute cumulative distances for x-axis labels
+  function hav(a, b) {
+    var R = 6371, dLat = (b[0]-a[0])*Math.PI/180, dLon = (b[1]-a[1])*Math.PI/180;
+    var s = Math.sin(dLat/2)*Math.sin(dLat/2) +
+            Math.cos(a[0]*Math.PI/180)*Math.cos(b[0]*Math.PI/180)*
+            Math.sin(dLon/2)*Math.sin(dLon/2);
+    return R * 2 * Math.atan2(Math.sqrt(s), Math.sqrt(1-s));
+  }
+  var dists = [0];
+  for (var i = 1; i < route2.length; i++) dists.push(dists[i-1] + hav(route2[i-1], route2[i]));
+
+  // Filter out null elevations for chart (replace with previous valid value)
+  var cleaned = elevs.map(function(v) { return v !== null ? v : 0; });
+
+  new Chart(canvas, {
+    type: 'line',
+    data: {
+      labels: dists.map(function(d) { return d.toFixed(2); }),
+      datasets: [{
+        data: cleaned,
+        borderColor: '#a3e635',
+        backgroundColor: 'rgba(163,230,53,0.12)',
+        borderWidth: 1.5,
+        pointRadius: 0,
+        pointHoverRadius: 3,
+        fill: true,
+        tension: 0.3,
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            title: function(items) { return items[0].label + ' km'; },
+            label: function(item) { return Math.round(item.raw) + ' m'; },
+          },
+          backgroundColor: '#26331e',
+          borderColor: '#33422a',
+          borderWidth: 1,
+          titleColor: '#9aad8e',
+          bodyColor: '#e8efe2',
+        }
+      },
+      scales: {
+        x: {
+          ticks: {
+            color: '#9aad8e',
+            maxTicksLimit: 6,
+            font: { size: 10 },
+            callback: function(val, idx) {
+              return this.getLabelForValue(val) + ' km';
+            }
+          },
+          grid: { display: false },
+          border: { color: '#33422a' },
+        },
+        y: {
+          ticks: { color: '#9aad8e', font: { size: 10 },
+            callback: function(v) { return v + ' m'; }
+          },
+          grid: { color: 'rgba(51,66,42,0.5)', lineWidth: 1 },
+          border: { color: '#33422a' },
+        }
+      }
+    }
+  });
+})();
+</script>
+{% endblock content %}

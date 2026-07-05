@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% block title %}Update | {% endblock %}
+{% block content %}
+  <div style="max-width:560px;margin-inline:auto;">
+    <span class="eyebrow">Your account</span>
+    <h1 style="margin-bottom:var(--space-4);">Update Profile</h1>
+
+    <form method="POST" enctype="multipart/form-data" class="surface" style="padding:var(--space-6);">
+      {% csrf_token %}
+      {{ user_form.non_field_errors }}
+      {{ user_form.as_p }}
+
+      <hr style="border-color:var(--trail-border);margin:var(--space-6) 0;">
+
+      {{ profile_form.non_field_errors }}
+
+      <div class="dropzone" data-dropzone>
+        <label class="dropzone-btn" for="{{ profile_form.profile_image.id_for_label }}">
+          <span class="dropzone-icon">&#128247;</span><span>Profile photo</span>
+        </label>
+        <div class="dropzone-field">{{ profile_form.profile_image }}</div>
+      </div>
+      {{ profile_form.profile_image.errors }}
+
+      <div class="mb-3">
+        {{ profile_form.media_url.label_tag }}
+        {{ profile_form.media_url }}
+        {{ profile_form.media_url.errors }}
+      </div>
+
+      <div class="mb-3">
+        {{ profile_form.profile_bio.label_tag }}
+        {{ profile_form.profile_bio }}
+        {{ profile_form.profile_bio.errors }}
+      </div>
+
+      <div class="mb-3">
+        {{ profile_form.homepage_link.label_tag }}
+        {{ profile_form.homepage_link }}
+        {{ profile_form.homepage_link.errors }}
+      </div>
+
+      <div class="mb-3">
+        {{ profile_form.facebook_link.label_tag }}
+        {{ profile_form.facebook_link }}
+        {{ profile_form.facebook_link.errors }}
+      </div>
+
+      <div class="mb-3">
+        {{ profile_form.instagram_link.label_tag }}
+        {{ profile_form.instagram_link }}
+        {{ profile_form.instagram_link.errors }}
+      </div>
+
+      <div class="mb-3">
+        {{ profile_form.linkedin_link.label_tag }}
+        {{ profile_form.linkedin_link }}
+        {{ profile_form.linkedin_link.errors }}
+      </div>
+
+      <button class="btn btn-primary mt-3" style="width:100%;" type="submit">Update Profile</button>
+    </form>
+  </div>
+{% endblock content %}

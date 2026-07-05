@@ -1,0 +1,23 @@
+virt/
+venv/
+env/
+.venv/
+
+__pycache__/
+*.pyc
+
+# Environment variables / secrets — never commit these.
+.env
+*.env
+.env.*
+
+db.sqlite3
+db.sqlite3-journal
+
+/media/
+staticfiles/
+
+.coverage
+htmlcov/
+
+.DS_Store

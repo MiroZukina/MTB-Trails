@@ -1,0 +1,391 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}{% endblock %}
+{% block content %}
+  <div class="feed-layout">
+
+    <div class="feed-main">
+      <div class="feed-toolbar pill-row">
+        {% if near_mode %}
+          <span class="eyebrow" style="color:var(--accent);text-transform:none;letter-spacing:normal;">&#128205; Sorted by distance</span>
+          <a href="{% url 'home' %}" class="btn btn-outline-secondary btn-sm">Show all</a>
+        {% else %}
+          <button id="near-me-btn" class="btn btn-outline-secondary btn-sm" title="Sort by distance from your location">&#128205; Near me</button>
+          <a href="{% url 'explore' %}" class="btn btn-outline-secondary btn-sm">&#127968; Explore map</a>
+        {% endif %}
+      </div>
+
+      {% for post in posts %}
+        <article class="post-card">
+          <div class="post-card-header">
+            {% if post.user.profile.profile_image %}
+              <img src="{{ post.user.profile.profile_image.url }}" class="post-avatar" alt="{{ post.user.username }}'s profile image">
+            {% else %}
+              <img src="{% static 'images/default.jpg' %}" class="post-avatar" alt="Profile image">
+            {% endif %}
+            <div class="post-card-byline">
+              <a href="{% url 'profile' post.user.id %}" class="post-card-username">@{{ post.user.username|lower }}</a>
+              <span class="post-card-time">{{ post.created_at }}</span>
+            </div>
+          </div>
+
+          {% if post.post_media %}
+            <div class="post-card-media">
+              {% if post.is_video %}
+                <video src="{{ post.post_media.url }}" controls preload="metadata"></video>
+              {% else %}
+                <img src="{{ post.post_media.url }}" alt="Post media">
+              {% endif %}
+            </div>
+          {% endif %}
+
+          {% if post.attachment %}
+            <a href="{{ post.attachment.url }}" download class="attachment-chip">
+              <span class="attachment-chip-icon">{{ post.attachment_icon }}</span>
+              <span class="attachment-chip-name">{{ post.attachment_filename }}</span>
+              <span class="attachment-chip-size">{{ post.attachment_size_display }}</span>
+            </a>
+          {% endif %}
+
+          {% if post.has_route or post.has_location %}
+            <div style="position:relative;margin-bottom:var(--space-2);">
+              <div id="mini-map-{{ post.id }}"
+                   class="mini-map"
+                   data-lat="{{ post.latitude }}"
+                   data-lng="{{ post.longitude }}"
+                   data-route="{{ post.route_json }}"
+                   data-color="{{ post.difficulty_color }}"
+                   style="height:160px;overflow:hidden;">
+              </div>
+              <a href="https://www.openstreetmap.org/?mlat={{ post.latitude|default:0 }}&mlon={{ post.longitude|default:0 }}"
+                 target="_blank" rel="noopener"
+                 style="position:absolute;inset:0;display:block;z-index:1001;border-radius:var(--radius-card);"
+                 title="View on OpenStreetMap"></a>
+            </div>
+            <div style="font-size:var(--text-xs);color:var(--trail-muted);margin-bottom:var(--space-2);">
+              {% if post.location_name %}&#128205; {{ post.location_name }}&nbsp;{% endif %}
+              {% if post.length_km %}&nbsp;&#128692; {{ post.length_km }} km{% endif %}
+              {% if post.total_ascent_m %}&nbsp;&#9968; {{ post.total_ascent_m }} m{% endif %}
+              {% if post.distance_km %}&nbsp;&#128205; {{ post.distance_km }} km away{% endif %}
+              {% if post.difficulty %}&nbsp;<span class="diff-badge diff-{{ post.difficulty }}">{{ post.difficulty_label }}</span>{% endif %}
+            </div>
+          {% elif post.difficulty %}
+            <div style="margin-bottom:var(--space-2);">
+              <span class="diff-badge diff-{{ post.difficulty }}">{{ post.difficulty_label }}</span>
+            </div>
+          {% endif %}
+
+          <p class="post-card-body">{{ post.body }}</p>
+
+          <div class="post-card-footer">
+            {% if user in post.likes.all %}
+              <a href="{% url 'post_like' post.id %}" class="post-action is-active">
+                <span class="post-action-icon">&#9829;</span>Unlike &middot; {{ post.number_of_likes }}
+              </a>
+            {% else %}
+              <a href="{% url 'post_like' post.id %}" class="post-action">
+                <span class="post-action-icon">&#9825;</span>Like &middot; {{ post.number_of_likes }}
+              </a>
+            {% endif %}
+            <a href="{% url 'post_show' post.id %}#comments-{{ post.id }}" class="post-action">
+              <span class="post-action-icon">&#128172;</span>Comment
+            </a>
+            <a href="{% url 'post_show' post.id %}" class="post-action">
+              <span class="post-action-icon">&#8599;</span>Share
+            </a>
+            {% if request.user.username == post.user.username %}
+              <a href="{% url 'edit_post' post.id %}" class="post-action">
+                <span class="post-action-icon">&#9998;</span>Edit
+              </a>
+              <a href="{% url 'delete_post' post.id %}" class="post-action">
+                <span class="post-action-icon">&#128465;</span>Delete
+              </a>
+            {% endif %}
+          </div>
+
+          {% if post.comments.all %}
+            <div class="comments-thread" id="comments-{{ post.id }}">
+              {% for comment in post.comments.all %}
+                <div class="comment-row">
+                  {% if comment.user.profile.profile_image %}
+                    <img src="{{ comment.user.profile.profile_image.url }}" class="comment-avatar" alt="">
+                  {% else %}
+                    <img src="{% static 'images/default.jpg' %}" class="comment-avatar" alt="">
+                  {% endif %}
+                  <div class="comment-bubble">
+                    <a href="{% url 'profile' comment.user.id %}" style="color:inherit;"><strong>@{{ comment.user.username|lower }}</strong></a>
+                    <span class="comment-time">{{ comment.created_at }}</span><br>
+                    {% if comment.text %}{{ comment.text }}{% endif %}
+                    {% include '_comment_media.html' %}
+                  </div>
+                </div>
+              {% endfor %}
+            </div>
+          {% endif %}
+
+          {% include '_comment_composer.html' %}
+        </article>
+      {% empty %}
+        <div class="empty-state surface">
+          <div class="empty-state-icon">&#128683;</div>
+          <div class="empty-state-text">No trail posts yet. Be the first to share a ride.</div>
+        </div>
+      {% endfor %}
+    </div>
+
+    <aside class="feed-sidebar">
+      <div class="feed-weather-group">
+      <!-- Local weather card: always pinned at top, populated via geolocation -->
+      <div id="hw-local" class="surface" style="padding:var(--space-4);min-height:72px;">
+        <div id="hw-local-loading" style="font-size:0.82rem;color:var(--trail-muted);">Detecting location&hellip;</div>
+        <div id="hw-local-body" style="display:none;">
+          <div id="hw-local-label" class="eyebrow" style="margin-bottom:var(--space-2);"></div>
+          <div class="d-flex align-items-center gap-2 mb-2">
+            <img id="hw-local-icon" src="" alt="" style="width:52px;height:52px;filter:drop-shadow(0 1px 4px rgba(163,230,53,0.35));">
+            <div>
+              <div id="hw-local-temp" style="font-family:var(--font-display);font-size:var(--text-xl);font-weight:800;color:var(--trail-bright);line-height:1;"></div>
+              <div id="hw-local-desc" style="font-size:0.82rem;color:var(--trail-muted);text-transform:capitalize;"></div>
+            </div>
+          </div>
+          <div class="d-flex gap-3 mb-2" style="font-size:0.8rem;color:var(--trail-muted);">
+            <span>&#128168; <strong id="hw-local-wind" style="color:var(--trail-text);"></strong> km/h</span>
+            <span>&#128167; <strong id="hw-local-humidity" style="color:var(--trail-text);"></strong>%</span>
+          </div>
+          <span id="hw-local-badge" class="condition-badge"></span>
+        </div>
+        <div id="hw-local-error" style="display:none;font-size:0.8rem;color:var(--trail-muted);"></div>
+      </div>
+
+      <!-- City search -->
+      <div>
+        <div class="d-flex gap-1 mb-1">
+          <input id="hw-city-input" type="text" placeholder="Check another city&hellip;"
+                 class="form-control form-control-sm" style="font-size:0.8rem;">
+          <button id="hw-city-btn" class="btn btn-primary btn-sm" style="white-space:nowrap;">Go</button>
+        </div>
+        <div id="hw-city-error" style="display:none;font-size:0.75rem;color:var(--danger);margin-bottom:0.4rem;"></div>
+        <div id="hw-search" class="surface" style="display:none;padding:var(--space-4);">
+          <div id="hw-search-label" class="eyebrow" style="margin-bottom:var(--space-2);"></div>
+          <div class="d-flex align-items-center gap-2 mb-2">
+            <img id="hw-search-icon" src="" alt="" style="width:52px;height:52px;filter:drop-shadow(0 1px 4px rgba(163,230,53,0.35));">
+            <div>
+              <div id="hw-search-temp" style="font-family:var(--font-display);font-size:var(--text-xl);font-weight:800;color:var(--trail-bright);line-height:1;"></div>
+              <div id="hw-search-desc" style="font-size:0.82rem;color:var(--trail-muted);text-transform:capitalize;"></div>
+            </div>
+          </div>
+          <div class="d-flex gap-3 mb-2" style="font-size:0.8rem;color:var(--trail-muted);">
+            <span>&#128168; <strong id="hw-search-wind" style="color:var(--trail-text);"></strong> km/h</span>
+            <span>&#128167; <strong id="hw-search-humidity" style="color:var(--trail-text);"></strong>%</span>
+          </div>
+          <span id="hw-search-badge" class="condition-badge"></span>
+        </div>
+      </div>
+      </div>
+
+      {% if form %}
+        <div class="composer" id="post-composer">
+          <button type="button" class="composer-trigger">&#9999;&#65039; What's on your trail?</button>
+          <div class="composer-body">
+            <form method="POST" enctype="multipart/form-data">
+              {% csrf_token %}
+              {{ form.non_field_errors }}
+              {{ form.body.errors }}
+              {{ form.body }}
+
+              <div class="dropzone" data-dropzone>
+                <label class="dropzone-btn" for="{{ form.post_media.id_for_label }}">
+                  <span class="dropzone-icon">&#128247;</span><span>Add photo/video</span>
+                </label>
+                <div class="dropzone-field">{{ form.post_media }}</div>
+              </div>
+              {{ form.post_media.errors }}
+
+              {{ form.media_url.label_tag }}
+              {{ form.media_url }}
+              {{ form.media_url.errors }}
+
+              <div class="dropzone" data-dropzone>
+                <label class="dropzone-btn" for="{{ form.attachment.id_for_label }}">
+                  <span class="dropzone-icon">&#128206;</span><span>Attach file</span>
+                </label>
+                <div class="dropzone-field">{{ form.attachment }}</div>
+              </div>
+              {{ form.attachment.errors }}
+              <input type="file" id="id_gpx_file" name="gpx_file" accept=".gpx" style="display:none">
+
+              {{ form.latitude }}{{ form.longitude }}{{ form.location_name }}{{ form.route }}{{ form.difficulty }}
+
+              <button type="submit" class="btn btn-primary">Post</button>
+            </form>
+            {% include 'map_picker.html' %}
+          </div>
+        </div>
+      {% endif %}
+    </aside>
+
+  </div>
+
+<script>
+(function () {
+  function fillCard(prefix, d) {
+    document.getElementById(prefix + 'label').textContent = d.city + ' Weather';
+    document.getElementById(prefix + 'icon').src = 'https://openweathermap.org/img/wn/' + d.icon + '@2x.png';
+    document.getElementById(prefix + 'icon').alt = d.description;
+    document.getElementById(prefix + 'temp').textContent = d.temperature + '°C';
+    document.getElementById(prefix + 'desc').textContent = d.description;
+    document.getElementById(prefix + 'wind').textContent = d.wind_speed;
+    document.getElementById(prefix + 'humidity').textContent = d.humidity;
+    var badge = document.getElementById(prefix + 'badge');
+    badge.textContent = d.trail_status;
+    badge.className = 'condition-badge ' + d.trail_class;
+  }
+
+  // Geolocation → local card. Guards against every failure path (denied,
+  // timeout, unavailable, or a hung/missing API) so the widget never gets
+  // stuck on "Detecting location…" — it always resolves to either the
+  // weather card or the "search a city instead" fallback.
+  var GEO_TIMEOUT_MS = 8000;
+  var geoSettled = false;
+
+  function showLocalFallback(message) {
+    if (geoSettled) return;
+    geoSettled = true;
+    document.getElementById('hw-local-loading').style.display = 'none';
+    var el = document.getElementById('hw-local-error');
+    el.textContent = message;
+    el.style.display = 'block';
+  }
+
+  if (navigator.geolocation) {
+    // Belt-and-suspenders: some browsers/environments never fire either
+    // getCurrentPosition callback at all, ignoring their own timeout option.
+    var geoSafetyTimer = setTimeout(function () {
+      showLocalFallback('Location off — search a city instead.');
+    }, GEO_TIMEOUT_MS + 1000);
+
+    try {
+      navigator.geolocation.getCurrentPosition(function (pos) {
+        clearTimeout(geoSafetyTimer);
+        if (geoSettled) return;
+        geoSettled = true;
+        document.getElementById('hw-local-loading').style.display = 'none';
+        fetch('/weather-widget/?lat=' + pos.coords.latitude + '&lon=' + pos.coords.longitude)
+          .then(function (r) { return r.json(); })
+          .then(function (d) {
+            if (d.error) {
+              var el = document.getElementById('hw-local-error');
+              el.textContent = d.error; el.style.display = 'block';
+            } else {
+              fillCard('hw-local-', d);
+              document.getElementById('hw-local-body').style.display = 'block';
+            }
+          })
+          .catch(function () {
+            var el = document.getElementById('hw-local-error');
+            el.textContent = 'Weather unavailable — search a city instead.'; el.style.display = 'block';
+          });
+      }, function () {
+        // Covers PERMISSION_DENIED, POSITION_UNAVAILABLE and TIMEOUT alike.
+        clearTimeout(geoSafetyTimer);
+        showLocalFallback('Location off — search a city instead.');
+      }, { timeout: GEO_TIMEOUT_MS, maximumAge: 5 * 60 * 1000 });
+    } catch (e) {
+      clearTimeout(geoSafetyTimer);
+      showLocalFallback('Location off — search a city instead.');
+    }
+  } else {
+    showLocalFallback('Location not available — search a city instead.');
+  }
+
+  // City search → search result card
+  var input = document.getElementById('hw-city-input');
+  var btn   = document.getElementById('hw-city-btn');
+  var err   = document.getElementById('hw-city-error');
+
+  function searchCity(city) {
+    btn.disabled = true; btn.textContent = '…'; err.style.display = 'none';
+    fetch('/weather-widget/?city=' + encodeURIComponent(city))
+      .then(function (r) { return r.json(); })
+      .then(function (d) {
+        if (d.error) {
+          err.textContent = d.error; err.style.display = 'block';
+          document.getElementById('hw-search').style.display = 'none';
+        } else {
+          fillCard('hw-search-', d);
+          document.getElementById('hw-search').style.display = 'block';
+        }
+      })
+      .catch(function () {
+        err.textContent = 'Weather service unavailable.'; err.style.display = 'block';
+      })
+      .finally(function () { btn.disabled = false; btn.textContent = 'Go'; });
+  }
+
+  btn.addEventListener('click', function () { var c = input.value.trim(); if (c) searchCity(c); });
+  input.addEventListener('keydown', function (e) {
+    if (e.key === 'Enter') { e.preventDefault(); var c = input.value.trim(); if (c) searchCity(c); }
+  });
+})();
+</script>
+
+<script>
+(function () {
+  var nearBtn = document.getElementById('near-me-btn');
+  if (nearBtn) {
+    nearBtn.addEventListener('click', function () {
+      nearBtn.disabled = true;
+      nearBtn.textContent = 'Locating…';
+      if (!navigator.geolocation) {
+        alert('Geolocation is not supported by your browser.');
+        nearBtn.disabled = false; nearBtn.textContent = '📍 Near me';
+        return;
+      }
+      navigator.geolocation.getCurrentPosition(
+        function (pos) {
+          window.location.href = '/?lat=' + pos.coords.latitude + '&lng=' + pos.coords.longitude;
+        },
+        function () {
+          alert('Location permission denied. Enable location access to use Near me.');
+          nearBtn.disabled = false; nearBtn.textContent = '📍 Near me';
+        }
+      );
+    });
+  }
+})();
+</script>
+
+<script>
+(function () {
+  document.querySelectorAll('.mini-map').forEach(function (el) {
+    var lat   = parseFloat(el.dataset.lat) || null;
+    var lng   = parseFloat(el.dataset.lng) || null;
+    var color = el.dataset.color || '#e03030';
+    var route = null;
+    try { route = JSON.parse(el.dataset.route); } catch (e) {}
+    if (!Array.isArray(route) || !route.length) route = null;
+    if (!route && !lat) return;
+
+    var miniMap = L.map(el, {
+      dragging:           false,
+      scrollWheelZoom:    false,
+      doubleClickZoom:    false,
+      touchZoom:          false,
+      zoomControl:        false,
+      attributionControl: false,
+    });
+    L.tileLayer('https://{s}.tile-cyclosm.openstreetmap.fr/cyclosm/{z}/{x}/{y}.png', {
+      maxZoom: 20
+    }).addTo(miniMap);
+
+    if (route) {
+      var poly = L.polyline(route, { color: color, weight: 4, opacity: 0.85 }).addTo(miniMap);
+      L.marker([route[0][0], route[0][1]]).addTo(miniMap);
+      miniMap.fitBounds(poly.getBounds(), { padding: [20, 20] });
+    } else {
+      L.marker([lat, lng]).addTo(miniMap);
+      miniMap.setView([lat, lng], 12);
+    }
+  });
+})();
+</script>
+{% endblock content %}
