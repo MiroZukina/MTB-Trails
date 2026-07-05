@@ -157,6 +157,8 @@ textarea:focus-visible,
 .navbar-brand:hover { color: #b8f261 !important; }
 .nav-link {
   position: relative;
+  display: flex;
+  align-items: center;
   color: var(--trail-text) !important;
   font-weight: 500;
   padding: 0.5rem 0.85rem !important;
@@ -168,8 +170,36 @@ textarea:focus-visible,
   color: var(--accent) !important;
   background-color: rgba(163, 230, 53, 0.12);
 }
-.navbar-toggler { border-color: var(--border); box-shadow: none !important; }
+.navbar-toggler {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  min-height: 44px;
+  border-color: var(--border);
+  box-shadow: none !important;
+}
 .navbar-toggler:focus-visible { box-shadow: 0 0 0 3px rgba(163, 230, 53, 0.45) !important; }
+
+/* Mobile menu (below the lg collapse breakpoint): the desktop navbar's
+   translucent blur must not carry into the open menu, since it then sits
+   over page content with a solid readable card instead. */
+@media (max-width: 991.98px) {
+  .navbar-collapse {
+    background-color: var(--surface);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-control);
+    margin-top: var(--space-3);
+    padding: var(--space-3);
+    box-shadow: var(--shadow-md);
+  }
+  .navbar-nav .nav-link,
+  .navbar-nav .dropdown-item {
+    min-height: 44px;
+  }
+}
 
 .nav-avatar {
   display: inline-flex;
