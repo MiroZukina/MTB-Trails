@@ -1,10 +1,21 @@
 """Shared helpers for validating and rendering user-supplied media (uploaded
 files or external URLs) across the cycling, item and profile forms."""
+import os
+from io import BytesIO
 from urllib.parse import urlparse, parse_qs
 
 from django.core.exceptions import ValidationError
+from django.core.files.uploadedfile import InMemoryUploadedFile
+from PIL import Image, ImageOps
 
-IMAGE_EXTENSIONS = ('.jpg', '.jpeg', '.png', '.webp', '.gif')
+try:
+    import pillow_heif
+    pillow_heif.register_heif_opener()
+except ImportError:
+    pass
+
+IMAGE_EXTENSIONS = ('.jpg', '.jpeg', '.png', '.webp', '.gif', '.heic', '.heif')
+HEIC_EXTENSIONS = ('.heic', '.heif')
 POST_VIDEO_EXTENSIONS = ('.mp4', '.webm', '.mov')
 
 MAX_IMAGE_BYTES = 20 * 1024 * 1024
@@ -65,16 +76,59 @@ def validate_file(f, extensions, max_bytes, kind):
         raise ValidationError(f'{kind.capitalize()} file is too large. Max {max_bytes // (1024 * 1024)}MB.')
 
 
+def _sniff_and_normalize_image(f):
+    """Confirm `f` is really a decodable image (content-sniffing with Pillow,
+    not just extension matching), and convert HEIC/HEIF to a browser-safe
+    JPEG so the stored/displayed file always renders in a browser. Never lets
+    a Pillow/OS exception escape — any failure becomes a clean ValidationError.
+    Returns the file that should actually be stored (unchanged for formats
+    browsers already support)."""
+    name = (getattr(f, 'name', '') or '').lower()
+    try:
+        f.seek(0)
+        image = Image.open(f)
+        image.verify()
+    except Exception as exc:
+        raise ValidationError('File does not look like a valid image.') from exc
+    finally:
+        try:
+            f.seek(0)
+        except Exception:
+            pass
+
+    if not name.endswith(HEIC_EXTENSIONS):
+        return f
+
+    try:
+        f.seek(0)
+        image = Image.open(f)
+        image = ImageOps.exif_transpose(image)
+        if image.mode != 'RGB':
+            image = image.convert('RGB')
+        buffer = BytesIO()
+        image.save(buffer, format='JPEG', quality=85)
+    except Exception as exc:
+        raise ValidationError('Could not process this HEIC/HEIF image. Try a different photo.') from exc
+
+    content = buffer.getvalue()
+    base = os.path.splitext(getattr(f, 'name', '') or 'image')[0]
+    return InMemoryUploadedFile(
+        BytesIO(content), None, f'{base}.jpg', 'image/jpeg', len(content), None,
+    )
+
+
 def validate_image_file(f, max_bytes=MAX_IMAGE_BYTES):
     validate_file(f, IMAGE_EXTENSIONS, max_bytes, 'image')
+    return _sniff_and_normalize_image(f)
 
 
 def validate_post_media_file(f):
     name = (getattr(f, 'name', '') or '').lower()
     if name.endswith(POST_VIDEO_EXTENSIONS):
         validate_file(f, POST_VIDEO_EXTENSIONS, MAX_POST_VIDEO_BYTES, 'video')
-    else:
-        validate_file(f, IMAGE_EXTENSIONS, MAX_IMAGE_BYTES, 'image')
+        return f
+    validate_file(f, IMAGE_EXTENSIONS, MAX_IMAGE_BYTES, 'image')
+    return _sniff_and_normalize_image(f)
 
 
 def youtube_nocookie_embed_url(video_id):

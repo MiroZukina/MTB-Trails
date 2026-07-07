@@ -50,7 +50,7 @@ class PostForm(forms.ModelForm):
     def clean_post_media(self):
         f = self.cleaned_data.get('post_media')
         if f:
-            validate_post_media_file(f)
+            f = validate_post_media_file(f)
         return f
 
     def clean_media_url(self):
@@ -130,7 +130,7 @@ class CommentForm(forms.ModelForm):
     def clean_media(self):
         f = self.cleaned_data.get('media')
         if f:
-            validate_post_media_file(f)
+            f = validate_post_media_file(f)
         return f
 
     def clean_media_url(self):
@@ -207,7 +207,7 @@ class ProfilePicForm(forms.ModelForm):
     def clean_profile_image(self):
         f = self.cleaned_data.get('profile_image')
         if f:
-            validate_image_file(f)
+            f = validate_image_file(f)
         return f
 
     def clean_media_url(self):

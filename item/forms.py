@@ -9,7 +9,7 @@ class _ItemMediaValidationMixin:
     def clean_image(self):
         f = self.cleaned_data.get('image')
         if f:
-            validate_image_file(f)
+            f = validate_image_file(f)
         return f
 
     def clean_media_url(self):

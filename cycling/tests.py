@@ -1,5 +1,6 @@
 import os
 import unittest
+from io import BytesIO
 from unittest.mock import patch
 from django.core.exceptions import ValidationError
 from django.core.files.base import ContentFile
@@ -15,6 +16,7 @@ from cycling.views import home, profile_list
 from django.urls import reverse
 from django.contrib import messages
 from django.contrib.messages.storage.fallback import FallbackStorage
+from PIL import Image
 from media_utils import validate_attachment_file
 from media_storage import post_media_storage, attachment_storage
 
@@ -23,6 +25,22 @@ from media_storage import post_media_storage, attachment_storage
 # classes can be constructed, without ever making a real network call
 # (every test that activates this also mocks cloudinary.uploader.upload).
 FAKE_CLOUDINARY_URL = 'cloudinary://123456789012345:abcdefghijklmnopqrstuvwxyz12@demo'
+
+
+def _tiny_jpeg_bytes():
+    """A real, tiny, Pillow-decodable JPEG — used wherever a test needs
+    genuine image content rather than an extension-only stand-in."""
+    buf = BytesIO()
+    Image.new('RGB', (2, 2), (200, 50, 50)).save(buf, format='JPEG')
+    return buf.getvalue()
+
+
+def _tiny_heic_bytes():
+    """A real, tiny, pillow-heif-encoded HEIC file."""
+    import pillow_heif
+    buf = BytesIO()
+    pillow_heif.from_pillow(Image.new('RGB', (4, 4), (10, 20, 30))).save(buf, quality=90)
+    return buf.getvalue()
 
 
 class PostTestCase(TestCase):
@@ -257,6 +275,85 @@ class PostAttachmentFormAndRenderTestCase(TestCase):
         self.assertContains(detail_response, 'download')
 
 
+class PostMediaValidationTestCase(TestCase):
+    """Covers the iPhone HEIC upload bug: content-sniffing must never 500,
+    HEIC/HEIF must be accepted, and existing jpg/png behavior must be
+    unchanged."""
+
+    def setUp(self):
+        self.client = Client()
+        self.user = User.objects.create_user(username='media-user', password='mediapass123')
+        self.client.force_login(self.user)
+
+    def test_real_jpeg_post_media_accepted_and_stored_unchanged(self):
+        jpeg_bytes = _tiny_jpeg_bytes()
+        image = SimpleUploadedFile('ride.jpg', jpeg_bytes, content_type='image/jpeg')
+        form = PostForm(data={'body': 'Ride'}, files={'post_media': image})
+        self.assertTrue(form.is_valid(), form.errors)
+        stored = form.cleaned_data['post_media']
+        self.assertEqual(stored.name, 'ride.jpg')
+        self.assertEqual(stored.read(), jpeg_bytes)
+
+    def test_heic_post_media_accepted_and_converted_to_jpeg(self):
+        heic = SimpleUploadedFile('IMG_0001.heic', _tiny_heic_bytes(), content_type='image/heic')
+        form = PostForm(data={'body': 'Ride'}, files={'post_media': heic})
+        self.assertTrue(form.is_valid(), form.errors)
+        converted = form.cleaned_data['post_media']
+        self.assertTrue(converted.name.endswith('.jpg'))
+        converted.seek(0)
+        image = Image.open(converted)
+        self.assertEqual(image.format, 'JPEG')
+
+    def test_corrupt_image_post_media_rejected_as_form_error_not_500(self):
+        junk = SimpleUploadedFile('ride.jpg', b'\xff\xd8\xffnotreallyajpeg', content_type='image/jpeg')
+        form = PostForm(data={'body': 'Ride'}, files={'post_media': junk})
+        self.assertFalse(form.is_valid())
+        self.assertIn('post_media', form.errors)
+
+    def test_corrupt_image_post_media_via_view_returns_200_not_500(self):
+        junk = SimpleUploadedFile('ride.jpg', b'\xff\xd8\xffnotreallyajpeg', content_type='image/jpeg')
+        response = self.client.post(reverse('home'), {'body': 'Ride', 'post_media': junk})
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(Post.objects.filter(body='Ride').exists())
+
+    def test_heic_post_media_via_view_creates_post_with_jpeg(self):
+        heic = SimpleUploadedFile('IMG_0002.heic', _tiny_heic_bytes(), content_type='image/heic')
+        response = self.client.post(reverse('home'), {'body': 'iPhone ride', 'post_media': heic})
+        self.assertEqual(response.status_code, 302)
+        post = Post.objects.get(body='iPhone ride')
+        self.assertTrue(post.post_media.name.endswith('.jpg'))
+
+
+class AvatarUploadValidationTestCase(TestCase):
+    def setUp(self):
+        self.client = Client()
+        self.user = User.objects.create_user(username='avatar-user', password='avatarpass123')
+        self.client.force_login(self.user)
+
+    def test_heic_profile_image_accepted_and_converted_to_jpeg(self):
+        from cycling.forms import ProfilePicForm
+        heic = SimpleUploadedFile('selfie.heic', _tiny_heic_bytes(), content_type='image/heic')
+        form = ProfilePicForm(
+            data={'profile_bio': 'Rider'},
+            files={'profile_image': heic},
+            instance=self.user.profile,
+        )
+        self.assertTrue(form.is_valid(), form.errors)
+        converted = form.cleaned_data['profile_image']
+        self.assertTrue(converted.name.endswith('.jpg'))
+
+    def test_corrupt_profile_image_rejected_cleanly(self):
+        from cycling.forms import ProfilePicForm
+        junk = SimpleUploadedFile('selfie.jpg', b'\xff\xd8\xffnotreallyajpeg', content_type='image/jpeg')
+        form = ProfilePicForm(
+            data={'profile_bio': 'Rider'},
+            files={'profile_image': junk},
+            instance=self.user.profile,
+        )
+        self.assertFalse(form.is_valid())
+        self.assertIn('profile_image', form.errors)
+
+
 class WeatherPageRemovalTestCase(TestCase):
     def test_old_weather_url_redirects_permanently_to_home(self):
         response = self.client.get(reverse('weather'))
@@ -314,9 +411,25 @@ class CommentMediaValidationTestCase(TestCase):
         self.assertTrue(form.is_valid())
 
     def test_media_only_comment_is_valid(self):
-        image = SimpleUploadedFile('photo.jpg', b'\xff\xd8\xfffakejpegbytes', content_type='image/jpeg')
+        image = SimpleUploadedFile('photo.jpg', _tiny_jpeg_bytes(), content_type='image/jpeg')
         form = CommentForm(data={'text': ''}, files={'media': image})
         self.assertTrue(form.is_valid())
+
+    def test_corrupt_image_comment_media_rejected_cleanly(self):
+        junk = SimpleUploadedFile('photo.jpg', b'\xff\xd8\xffnotreallyajpeg', content_type='image/jpeg')
+        form = CommentForm(data={'text': ''}, files={'media': junk})
+        self.assertFalse(form.is_valid())
+        self.assertIn('media', form.errors)
+
+    def test_heic_comment_media_accepted_and_converted_to_jpeg(self):
+        heic = SimpleUploadedFile('photo.heic', _tiny_heic_bytes(), content_type='image/heic')
+        form = CommentForm(data={'text': ''}, files={'media': heic})
+        self.assertTrue(form.is_valid(), form.errors)
+        converted = form.cleaned_data['media']
+        self.assertTrue(converted.name.endswith('.jpg'))
+        converted.seek(0)
+        image = Image.open(converted)
+        self.assertEqual(image.format, 'JPEG')
 
     def test_completely_empty_comment_rejected(self):
         form = CommentForm(data={'text': ''})
@@ -350,7 +463,7 @@ class CommentMediaEndpointTestCase(TestCase):
         self.client.force_login(self.user)
 
     def test_home_accepts_multipart_media_only_comment(self):
-        image = SimpleUploadedFile('feedshot.jpg', b'\xff\xd8\xfffakejpeg', content_type='image/jpeg')
+        image = SimpleUploadedFile('feedshot.jpg', _tiny_jpeg_bytes(), content_type='image/jpeg')
         response = self.client.post(
             reverse('home'), {'text': '', 'post_id': self.post.id, 'media': image}
         )
@@ -359,7 +472,7 @@ class CommentMediaEndpointTestCase(TestCase):
         self.assertTrue(comment.media)
 
     def test_profile_accepts_multipart_media_only_comment(self):
-        image = SimpleUploadedFile('profileshot.jpg', b'\xff\xd8\xfffakejpeg', content_type='image/jpeg')
+        image = SimpleUploadedFile('profileshot.jpg', _tiny_jpeg_bytes(), content_type='image/jpeg')
         response = self.client.post(
             reverse('profile', args=[self.user.id]),
             {'text': '', 'post_id': self.post.id, 'media': image},
@@ -368,8 +481,18 @@ class CommentMediaEndpointTestCase(TestCase):
         comment = Comment.objects.get(post=self.post)
         self.assertTrue(comment.media)
 
+    def test_home_accepts_multipart_heic_comment_media_and_stores_jpeg(self):
+        heic = SimpleUploadedFile('feedshot.heic', _tiny_heic_bytes(), content_type='image/heic')
+        response = self.client.post(
+            reverse('home'), {'text': '', 'post_id': self.post.id, 'media': heic}
+        )
+        self.assertEqual(response.status_code, 302)
+        comment = Comment.objects.get(post=self.post)
+        self.assertTrue(comment.media)
+        self.assertTrue(comment.media.name.endswith('.jpg'))
+
     def test_post_show_accepts_multipart_media_only_comment(self):
-        image = SimpleUploadedFile('detailshot.jpg', b'\xff\xd8\xfffakejpeg', content_type='image/jpeg')
+        image = SimpleUploadedFile('detailshot.jpg', _tiny_jpeg_bytes(), content_type='image/jpeg')
         response = self.client.post(
             reverse('post_show', args=[self.post.id]), {'text': '', 'media': image}
         )
