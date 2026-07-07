@@ -572,7 +572,7 @@ class CloudinaryStorageSelectionTestCase(TestCase):
         with override_settings(CLOUDINARY_URL=FAKE_CLOUDINARY_URL), \
                 patch.dict(os.environ, {'CLOUDINARY_URL': FAKE_CLOUDINARY_URL}):
             storage = post_media_storage()
-            self.assertEqual(storage.__class__.__name__, 'MediaCloudinaryStorage')
+            self.assertEqual(storage.__class__.__name__, 'PostMediaCloudinaryStorage')
             self.assertEqual(storage.RESOURCE_TYPE, 'auto')
 
     def test_attachment_storage_is_cloudinary_raw_when_url_set(self):
@@ -601,8 +601,8 @@ class CloudinaryUploadPipelineTestCase(TestCase):
     def test_video_file_uploads_with_auto_resource_type(self, mock_upload):
         mock_upload.return_value = {'public_id': 'post_media/clip', 'resource_type': 'video'}
         with self._cloudinary_env():
-            from cloudinary_storage.storage import MediaCloudinaryStorage
-            storage = MediaCloudinaryStorage(resource_type='auto')
+            from cloudinary_media_storage import PostMediaCloudinaryStorage
+            storage = PostMediaCloudinaryStorage()
             video = ContentFile(b'\x00\x00\x00\x18ftypmp42fake-mp4-bytes', name='clip.mp4')
             storage.save('post_media/clip.mp4', video)
 
@@ -616,8 +616,8 @@ class CloudinaryUploadPipelineTestCase(TestCase):
         # a hardcoded 'image'), since one field holds both images and video.
         mock_upload.return_value = {'public_id': 'post_media/shot', 'resource_type': 'image'}
         with self._cloudinary_env():
-            from cloudinary_storage.storage import MediaCloudinaryStorage
-            storage = MediaCloudinaryStorage(resource_type='auto')
+            from cloudinary_media_storage import PostMediaCloudinaryStorage
+            storage = PostMediaCloudinaryStorage()
             image = ContentFile(b'\xff\xd8\xfffakejpegbytes', name='shot.jpg')
             storage.save('post_media/shot.jpg', image)
 
@@ -650,6 +650,55 @@ class CloudinaryUploadPipelineTestCase(TestCase):
         self.assertTrue(mock_upload.called)
         _, kwargs = mock_upload.call_args
         self.assertEqual(kwargs.get('resource_type'), 'raw')
+
+
+class PostMediaCloudinaryStorageUrlTestCase(TestCase):
+    """.url() must never build /auto/upload/... -- Cloudinary accepts 'auto'
+    as an upload-time resource_type but has no such thing at delivery time,
+    only 'image' and 'video'. URL building (cloudinary.utils.cloudinary_url)
+    is pure string construction with no network call, so these don't need
+    cloudinary.uploader mocked -- but they do need real (fake) values in
+    cloudinary.config() explicitly: it's a process-wide singleton built once
+    when Django loads the 'cloudinary' app, before any test's os.environ
+    patching runs, so patching CLOUDINARY_URL alone doesn't reach it."""
+
+    def setUp(self):
+        self._cloudinary_env = patch.dict(os.environ, {'CLOUDINARY_URL': FAKE_CLOUDINARY_URL})
+        self._cloudinary_env.start()
+        self.addCleanup(self._cloudinary_env.stop)
+        import cloudinary
+        cloudinary.config(cloud_name='demo', api_key='123456789012345',
+                           api_secret='abcdefghijklmnopqrstuvwxyz12')
+        from cloudinary_media_storage import PostMediaCloudinaryStorage
+        self.storage = PostMediaCloudinaryStorage()
+
+    def test_image_name_builds_image_upload_url(self):
+        url = self.storage.url('post_media/shot.jpg')
+        self.assertIn('/image/upload/', url)
+        self.assertNotIn('/auto/upload/', url)
+
+    def test_video_name_builds_video_upload_url(self):
+        url = self.storage.url('post_media/clip.mp4')
+        self.assertIn('/video/upload/', url)
+        self.assertNotIn('/auto/upload/', url)
+
+    @patch('cloudinary.uploader.upload')
+    def test_save_reattaches_extension_stripped_from_cloudinary_public_id(self, mock_upload):
+        # Cloudinary's real public_id for image/video assets never includes
+        # the file extension (only 'raw' assets keep it) -- _save() must put
+        # it back so a later .url()/.delete() can still tell image from
+        # video apart.
+        mock_upload.return_value = {'public_id': 'media/post_media/clip_a1b2c3', 'resource_type': 'video'}
+        video = ContentFile(b'\x00\x00\x00\x18ftypmp42fake-mp4-bytes', name='clip.mp4')
+        stored_name = self.storage.save('post_media/clip.mp4', video)
+        self.assertTrue(stored_name.endswith('.mp4'))
+
+    @patch('cloudinary.uploader.destroy')
+    def test_delete_strips_extension_and_uses_real_resource_type(self, mock_destroy):
+        mock_destroy.return_value = {'result': 'ok'}
+        self.storage.delete('media/post_media/clip_a1b2c3.mp4')
+        mock_destroy.assert_called_once_with(
+            'media/post_media/clip_a1b2c3', invalidate=True, resource_type='video')
 
 
 class GpxAttachmentStorageIndependenceTestCase(TestCase):

@@ -9,8 +9,13 @@ which is why those fields don't need anything from this module.
 Two kinds of fields need an explicit override instead:
   - post_media_storage: fields that hold EITHER an image OR a video
     (Post.post_media, Comment.media). Cloudinary needs resource_type='auto'
-    for these, since forcing resource_type='image' rejects/mishandles video
-    uploads.
+    at upload time for these, since forcing resource_type='image' rejects/
+    mishandles video uploads. But 'auto' isn't valid for building delivery
+    URLs, so this uses cloudinary_media_storage.PostMediaCloudinaryStorage,
+    a subclass that uploads with 'auto' while building URLs (and deleting)
+    with the file's real per-file resource type — see that module's
+    docstring for why a plain MediaCloudinaryStorage(resource_type='auto')
+    produces /auto/upload/... URLs that 404.
   - attachment_storage: fields that are never images (Post.attachment,
     Comment.attachment — pdf/gpx/txt/csv) and must use Cloudinary's raw
     resource type to upload/download correctly.
@@ -28,8 +33,8 @@ from django.core.files.storage import default_storage
 
 def post_media_storage():
     if getattr(settings, 'CLOUDINARY_URL', ''):
-        from cloudinary_storage.storage import MediaCloudinaryStorage
-        return MediaCloudinaryStorage(resource_type='auto')
+        from cloudinary_media_storage import PostMediaCloudinaryStorage
+        return PostMediaCloudinaryStorage()
     return default_storage
 
 
