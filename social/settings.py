@@ -246,3 +246,15 @@ EMAIL_PORT = 587
 EMAIL_USE_TLS = True
 EMAIL_HOST_USER = os.environ.get('EMAIL_USER') # Login email address, Stored as an environment varaible
 EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_PASSWORD') #App Password set from gmail, Stored as an environment varaible
+
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "handlers": {
+        "console": {"class": "logging.StreamHandler"},
+    },
+    "root": {"handlers": ["console"], "level": "WARNING"},
+    "loggers": {
+        "django.request": {"handlers": ["console"], "level": "ERROR", "propagate": False},
+    },
+}
